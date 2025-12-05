@@ -6,126 +6,20 @@ import {
   DialogActions,
   IconButton,
   Grid,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Button,
   Avatar,
   Box,
   RadioGroup,
   Typography,
-  FormControlLabel,
-  Radio,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import PhotoCamera from "@mui/icons-material/PhotoCamera";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-
-// Custom Radio Component for Task Status
-const CustomRadio = ({ value, label, color, formStatus, readOnly }) => (
-  <FormControlLabel
-    value={value}
-    control={
-      readOnly ? (
-        <Box
-          sx={{
-            width: 20,
-            height: 20,
-            borderRadius: "50%",
-            border: `2px solid ${color}`,
-            backgroundColor: formStatus === value ? color : "transparent",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            "&::after":
-              formStatus === value
-                ? {
-                    content: '""',
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    backgroundColor: "white",
-                  }
-                : {},
-          }}
-        />
-      ) : (
-        <Radio
-          icon={
-            <Box
-              sx={{
-                width: 20,
-                height: 20,
-                borderRadius: "50%",
-                border: `2px solid ${color}`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            />
-          }
-          checkedIcon={
-            <Box
-              sx={{
-                width: 20,
-                height: 20,
-                borderRadius: "50%",
-                border: `2px solid ${color}`,
-                backgroundColor: color,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                "&::after": {
-                  content: '""',
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  backgroundColor: "white",
-                },
-              }}
-            />
-          }
-          sx={{
-            color: color,
-            "&.Mui-checked": {
-              color: color,
-            },
-            "&:hover": {
-              backgroundColor: "transparent",
-            },
-          }}
-        />
-      )
-    }
-    label={
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-          {label}
-        </Typography>
-      </Box>
-    }
-    sx={{
-      margin: 0,
-      padding: "8px 16px",
-      borderRadius: "8px",
-      border:
-        formStatus === value ? `2px solid ${color}` : "2px solid transparent",
-      backgroundColor: formStatus === value ? `${color}15` : "transparent",
-      transition: "all 0.2s ease",
-      "&:hover": readOnly
-        ? {}
-        : {
-            backgroundColor: `${color}10`,
-            transform: "translateY(-1px)",
-          },
-      pointerEvents: readOnly ? "none" : "auto",
-    }}
-  />
-);
+import CustomInput from "./CustomInput";
+import CustomDatePicker from "./CustomDatePicker";
+import CustomRadio from "./CustomRadio";
 
 const CustomModal = ({
   open,
@@ -144,6 +38,7 @@ const CustomModal = ({
   nextEmployeeCodeDigits,
   employees = [],
   readOnly = false,
+  generatedCredentials,
 }) => {
   const isEmployeeMode = mode === "employee";
   const isEditing = editingItem !== null;
@@ -155,42 +50,6 @@ const CustomModal = ({
       .split(" ")
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(" ");
-  };
-
-  // Function to validate name (only letters and spaces)
-  const validateName = (name) => {
-    return /^[A-Za-z\s]*$/.test(name);
-  };
-
-  // Function to format phone number with +91
-  const formatPhoneNumber = (value) => {
-    const digits = value.replace(/\D/g, "").slice(0, 10);
-    return digits;
-  };
-
-  // Function to handle name input with validation and capitalization
-  const handleNameInput = (value) => {
-    if (validateName(value)) {
-      onInput("name", value);
-    }
-  };
-
-  // Function to handle phone input with formatting
-  const handlePhoneInput = (value) => {
-    const formatted = formatPhoneNumber(value);
-    onInput("phoneDigits", formatted);
-  };
-
-  // Function to handle employee ID input
-  const handleEmployeeIdInput = (value) => {
-    const digits = value.replace(/\D/g, "").slice(0, 4);
-    onInput("employeeCodeDigits", digits);
-  };
-
-  // Function to handle task ID input
-  const handleTaskIdInput = (value) => {
-    const digits = value.replace(/\D/g, "").slice(0, 4);
-    onInput("taskId", digits);
   };
 
   const handleCloseModal = () => {
@@ -221,29 +80,64 @@ const CustomModal = ({
     onSubmit(e);
   };
 
+  // For createdAt - use EXACT same DatePicker as original modal
   const handleCreatedAtChange = (newValue) => {
     if (isViewOnly) return;
-    const formattedDate = newValue ? newValue.toISOString().slice(0, 16) : "";
-    onInput("createdAt", formattedDate);
+
+    if (newValue) {
+      // Use ISO string format for createdAt
+      const formattedDate = newValue.toISOString().slice(0, 16);
+      onInput("createdAt", formattedDate);
+    } else {
+      onInput("createdAt", "");
+    }
   };
 
+  // For DOB - use same DatePicker as Add New Task modal
   const handleDOBChange = (newValue) => {
     if (isViewOnly) return;
+
     if (newValue) {
-      const formattedDate = newValue.toLocaleDateString("en-GB"); // dd/mm/yyyy format
+      // Format to dd/mm/yyyy string
+      const day = String(newValue.getDate()).padStart(2, "0");
+      const month = String(newValue.getMonth() + 1).padStart(2, "0");
+      const year = newValue.getFullYear();
+      const formattedDate = `${day}/${month}/${year}`;
       onInput("dob", formattedDate);
     } else {
       onInput("dob", "");
     }
   };
 
+  // For Joining Date - use same DatePicker as Add New Task modal
   const handleJoiningDateChange = (newValue) => {
     if (isViewOnly) return;
+
     if (newValue) {
-      const formattedDate = newValue.toLocaleDateString("en-GB"); // dd/mm/yyyy format
+      // Format to dd/mm/yyyy string
+      const day = String(newValue.getDate()).padStart(2, "0");
+      const month = String(newValue.getMonth() + 1).padStart(2, "0");
+      const year = newValue.getFullYear();
+      const formattedDate = `${day}/${month}/${year}`;
       onInput("joiningDate", formattedDate);
     } else {
       onInput("joiningDate", "");
+    }
+  };
+
+  // For End Date - handle the date change
+  const handleEndDateChange = (newValue) => {
+    if (isViewOnly) return;
+
+    if (newValue) {
+      // Format to dd/mm/yyyy string
+      const day = String(newValue.getDate()).padStart(2, "0");
+      const month = String(newValue.getMonth() + 1).padStart(2, "0");
+      const year = newValue.getFullYear();
+      const formattedDate = `${day}/${month}/${year}`;
+      onInput("endDate", formattedDate);
+    } else {
+      onInput("endDate", "");
     }
   };
 
@@ -300,19 +194,6 @@ const CustomModal = ({
       }
     : {};
 
-  // Common select props for read-only mode
-  const selectProps = isViewOnly
-    ? {
-        disabled: true,
-        sx: {
-          "& .MuiSelect-select": {
-            backgroundColor: "#f5f5f5",
-            cursor: "default",
-          },
-        },
-      }
-    : {};
-
   // Common date picker props for read-only mode
   const datePickerProps = isViewOnly
     ? {
@@ -321,8 +202,74 @@ const CustomModal = ({
       }
     : {};
 
+  // Parse date string to Date object for DatePicker
+  const parseDateString = (dateString) => {
+    if (!dateString || dateString === "") return null;
+
+    try {
+      // Handle dd/mm/yyyy format
+      if (dateString.includes("/")) {
+        const [day, month, year] = dateString.split("/");
+        // Month is 0-indexed in JavaScript Date
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      }
+      // Handle other formats if needed
+      return new Date(dateString);
+    } catch (error) {
+      console.error("Error parsing date:", error);
+      return null;
+    }
+  };
+
   // Blood group options
-  const bloodGroupOptions = ["A", "A+", "B", "B+", "AB+", "AB-", "O+", "O-"];
+  const bloodGroupOptions = [
+    { value: "A", label: "A" },
+    { value: "A+", label: "A+" },
+    { value: "B", label: "B" },
+    { value: "B+", label: "B+" },
+    { value: "AB+", label: "AB+" },
+    { value: "AB-", label: "AB-" },
+    { value: "O+", label: "O+" },
+    { value: "O-", label: "O-" },
+  ];
+
+  // Marital status options
+  const maritalStatusOptions = [
+    { value: "Single", label: "Single" },
+    { value: "Married", label: "Married" },
+    { value: "Divorced", label: "Divorced" },
+    { value: "Widowed", label: "Widowed" },
+  ];
+
+  // Nationality options
+  const nationalityOptions = [
+    { value: "Indian", label: "Indian" },
+    { value: "American", label: "American" },
+    { value: "British", label: "British" },
+    { value: "Canadian", label: "Canadian" },
+    { value: "Australian", label: "Australian" },
+    { value: "Other", label: "Other" },
+  ];
+
+  // Work format options
+  const workFormatOptions = [
+    { value: "Remote", label: "Remote" },
+    { value: "In-Office", label: "In-Office" },
+    { value: "Hybrid", label: "Hybrid" },
+  ];
+
+  // Task status options
+  const taskStatusOptions = [
+    { value: "active", label: "Active", color: "#06b6d4" },
+    { value: "completed", label: "Completed", color: "#10b981" },
+    { value: "failed", label: "Failed", color: "#ef4444" },
+  ];
+
+  // Employee options for task assignment
+  const employeeOptions = employees.map((employee) => ({
+    value: `${employee.employeeCode} - ${employee.name}`,
+    label: `${employee.employeeCode} - ${employee.name}`,
+  }));
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -432,433 +379,489 @@ const CustomModal = ({
                 <Grid container spacing={2}>
                   {/* Common Fields */}
                   <Grid size={12}>
-                    <TextField
-                      fullWidth
+                    <CustomInput
+                      type="name"
                       label={isEmployeeMode ? "Full name" : "Task Name"}
+                      name="name"
                       value={form.name}
-                      onChange={
-                        isViewOnly
-                          ? undefined
-                          : (e) => handleNameInput(e.target.value)
-                      }
-                      onBlur={
-                        isViewOnly || !isEmployeeMode
-                          ? undefined
-                          : (e) => {
-                              if (form.name) {
-                                onInput("name", capitalizeName(form.name));
-                              }
-                            }
+                      onInput={onInput}
+                      readOnly={isViewOnly}
+                      error={touched.name && errors.name}
+                      helperText={
+                        touched.name && errors.name ? "Required field" : ""
                       }
                       autoFocus={isEmployeeMode && !isViewOnly}
-                      {...textFieldProps}
+                      onBlur={() => {
+                        if (form.name && isEmployeeMode) {
+                          onInput("name", capitalizeName(form.name));
+                        }
+                      }}
                     />
-                    {touched.name && errors.name && (
-                      <div style={{ color: "crimson", fontSize: 12 }}>
-                        Required field
-                      </div>
-                    )}
                   </Grid>
 
                   {/* Employee-specific Fields */}
                   {isEmployeeMode ? (
                     <>
+                      {/* Basic Information Row */}
                       <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField
-                          fullWidth
+                        <CustomInput
+                          type="email"
                           label="Email"
+                          name="email"
                           value={form.email}
-                          onChange={
-                            isViewOnly
-                              ? undefined
-                              : (e) => onInput("email", e.target.value)
+                          onInput={onInput}
+                          readOnly={isViewOnly}
+                          error={touched.email && errors.email}
+                          helperText={
+                            touched.email && errors.email
+                              ? "Invalid email address"
+                              : ""
                           }
-                          {...textFieldProps}
                         />
-                        {touched.email && errors.email && (
-                          <div style={{ color: "crimson", fontSize: 12 }}>
-                            Invalid email address
-                          </div>
-                        )}
                       </Grid>
 
                       <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField
-                          fullWidth
+                        <CustomInput
+                          type="phone"
                           label="Contact"
-                          value={
-                            form.phoneDigits
-                              ? `+91 ${form.phoneDigits}`
-                              : "+91 "
-                          }
-                          onChange={
-                            isViewOnly
-                              ? undefined
-                              : (e) =>
-                                  handlePhoneInput(
-                                    e.target.value.replace("+91 ", "")
-                                  )
+                          name="phoneDigits"
+                          value={form.phoneDigits}
+                          onInput={onInput}
+                          readOnly={isViewOnly}
+                          error={touched.phoneDigits && errors.phoneDigits}
+                          helperText={
+                            touched.phoneDigits && errors.phoneDigits
+                              ? "Enter 10 digit mobile number"
+                              : ""
                           }
                           inputProps={{
                             inputMode: "numeric",
                             maxLength: 15,
-                            readOnly: isViewOnly,
                           }}
-                          {...textFieldProps}
                         />
-                        {touched.phoneDigits && errors.phoneDigits && (
-                          <div style={{ color: "crimson", fontSize: 12 }}>
-                            Enter 10 digit mobile number
-                          </div>
-                        )}
+                      </Grid>
+
+                      {/* Personal Information */}
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <DatePicker
+                          label="Date of Birth"
+                          value={parseDateString(form.dob)}
+                          onChange={handleDOBChange}
+                          format="dd/MM/yyyy"
+                          maxDate={new Date()}
+                          slotProps={{
+                            textField: {
+                              fullWidth: true,
+                              error: touched.dob && errors.dob,
+                              helperText:
+                                touched.dob && errors.dob
+                                  ? "Required field"
+                                  : "",
+                              ...textFieldProps,
+                            },
+                          }}
+                          {...datePickerProps}
+                        />
                       </Grid>
 
                       <Grid size={{ xs: 12, sm: 6 }}>
-                        <LocalizationProvider dateAdapter={AdapterDateFns}>
-                          <DatePicker
-                            label="Date of Birth"
-                            value={
-                              form.dob
-                                ? new Date(
-                                    form.dob.split("/").reverse().join("-")
-                                  )
-                                : null
-                            }
-                            onChange={handleDOBChange}
-                            format="dd/MM/yyyy"
-                            maxDate={new Date()}
-                            slotProps={{
-                              textField: {
-                                fullWidth: true,
-                                ...textFieldProps,
-                              },
-                            }}
-                            {...datePickerProps}
-                          />
-                        </LocalizationProvider>
-                        {touched.dob && errors.dob && (
-                          <div style={{ color: "crimson", fontSize: 12 }}>
-                            Required field
-                          </div>
-                        )}
+                        <CustomInput
+                          select
+                          label="Blood Group"
+                          name="bloodGroup"
+                          value={form.bloodGroup}
+                          onInput={onInput}
+                          readOnly={isViewOnly}
+                          error={touched.bloodGroup && errors.bloodGroup}
+                          helperText={
+                            touched.bloodGroup && errors.bloodGroup
+                              ? "Required field"
+                              : ""
+                          }
+                          options={bloodGroupOptions}
+                        />
                       </Grid>
 
                       <Grid size={{ xs: 12, sm: 6 }}>
-                        <FormControl fullWidth>
-                          <InputLabel id="blood-group-label">
-                            Blood Group
-                          </InputLabel>
-                          <Select
-                            labelId="blood-group-label"
-                            label="Blood Group"
-                            value={form.bloodGroup}
-                            onChange={
-                              isViewOnly
-                                ? undefined
-                                : (e) => onInput("bloodGroup", e.target.value)
-                            }
-                            {...selectProps}
-                          >
-                            {bloodGroupOptions.map((group) => (
-                              <MenuItem key={group} value={group}>
-                                {group}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                        {touched.bloodGroup && errors.bloodGroup && (
-                          <div style={{ color: "crimson", fontSize: 12 }}>
-                            Required field
-                          </div>
-                        )}
+                        <CustomInput
+                          select
+                          label="Marital Status"
+                          name="maritalStatus"
+                          value={form.maritalStatus || "Single"}
+                          onInput={onInput}
+                          readOnly={isViewOnly}
+                          error={touched.maritalStatus && errors.maritalStatus}
+                          helperText={
+                            touched.maritalStatus && errors.maritalStatus
+                              ? "Required field"
+                              : ""
+                          }
+                          options={maritalStatusOptions}
+                        />
                       </Grid>
 
                       <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField
-                          fullWidth
+                        <CustomInput
+                          select
+                          label="Nationality"
+                          name="nationality"
+                          value={form.nationality || "Indian"}
+                          onInput={onInput}
+                          readOnly={isViewOnly}
+                          error={touched.nationality && errors.nationality}
+                          helperText={
+                            touched.nationality && errors.nationality
+                              ? "Required field"
+                              : ""
+                          }
+                          options={nationalityOptions}
+                        />
+                      </Grid>
+
+                      <Grid size={12}>
+                        <CustomInput
+                          multiline
+                          rows={2}
+                          label="Address"
+                          name="address"
+                          value={form.address}
+                          onInput={onInput}
+                          readOnly={isViewOnly}
+                          error={touched.address && errors.address}
+                          helperText={
+                            touched.address && errors.address
+                              ? "Required field"
+                              : ""
+                          }
+                        />
+                      </Grid>
+
+                      {/* Professional Information */}
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <CustomInput
                           label="Department"
+                          name="department"
                           value={form.department}
-                          onChange={
-                            isViewOnly
-                              ? undefined
-                              : (e) => onInput("department", e.target.value)
+                          onInput={onInput}
+                          readOnly={isViewOnly}
+                          error={touched.department && errors.department}
+                          helperText={
+                            touched.department && errors.department
+                              ? "Required field"
+                              : ""
                           }
-                          {...textFieldProps}
                         />
-                        {touched.department && errors.department && (
-                          <div style={{ color: "crimson", fontSize: 12 }}>
-                            Required field
-                          </div>
-                        )}
                       </Grid>
 
                       <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField
-                          fullWidth
+                        <CustomInput
                           label="Role"
+                          name="role"
                           value={form.role}
-                          onChange={
-                            isViewOnly
-                              ? undefined
-                              : (e) => onInput("role", e.target.value)
+                          onInput={onInput}
+                          readOnly={isViewOnly}
+                          error={touched.role && errors.role}
+                          helperText={
+                            touched.role && errors.role ? "Required field" : ""
                           }
-                          {...textFieldProps}
                         />
-                        {touched.role && errors.role && (
-                          <div style={{ color: "crimson", fontSize: 12 }}>
-                            Required field
-                          </div>
-                        )}
                       </Grid>
 
                       <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField
-                          fullWidth
+                        <CustomInput
+                          type="employeeId"
                           label="Employee ID"
-                          value={
-                            form.employeeCodeDigits
-                              ? `LSEMP${form.employeeCodeDigits}`
-                              : "LSEMP"
+                          name="employeeCodeDigits"
+                          value={form.employeeCodeDigits}
+                          onInput={onInput}
+                          readOnly={isViewOnly}
+                          error={
+                            touched.employeeCodeDigits &&
+                            errors.employeeCodeDigits
                           }
-                          onChange={
-                            isViewOnly
-                              ? undefined
-                              : (e) =>
-                                  handleEmployeeIdInput(
-                                    e.target.value.replace("LSEMP", "")
-                                  )
+                          helperText={
+                            touched.employeeCodeDigits &&
+                            errors.employeeCodeDigits
+                              ? errors.employeeCodeDigits === true
+                                ? "Enter exactly 4 digits"
+                                : "Employee ID already exists"
+                              : ""
                           }
+                          placeholder="LSEMP0000"
                           inputProps={{
                             inputMode: "numeric",
                             maxLength: 9,
-                            readOnly: isViewOnly,
                           }}
-                          placeholder="LSEMP0000"
-                          {...textFieldProps}
                         />
-                        {touched.employeeCodeDigits &&
-                          errors.employeeCodeDigits && (
-                            <div style={{ color: "crimson", fontSize: 12 }}>
-                              {errors.employeeCodeDigits === true
-                                ? "Enter exactly 4 digits"
-                                : "Employee ID already exists"}
-                            </div>
-                          )}
                       </Grid>
 
                       <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField
-                          fullWidth
+                        <CustomInput
                           label="Designation"
+                          name="designation"
                           value={form.designation}
-                          onChange={
-                            isViewOnly
-                              ? undefined
-                              : (e) => onInput("designation", e.target.value)
+                          onInput={onInput}
+                          readOnly={isViewOnly}
+                          error={touched.designation && errors.designation}
+                          helperText={
+                            touched.designation && errors.designation
+                              ? "Required field"
+                              : ""
                           }
-                          {...textFieldProps}
                         />
-                        {touched.designation && errors.designation && (
-                          <div style={{ color: "crimson", fontSize: 12 }}>
-                            Required field
-                          </div>
-                        )}
                       </Grid>
 
                       <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField
-                          fullWidth
+                        <CustomInput
                           label="Working Project"
+                          name="workingProject"
                           value={form.workingProject}
-                          onChange={
-                            isViewOnly
-                              ? undefined
-                              : (e) => onInput("workingProject", e.target.value)
+                          onInput={onInput}
+                          readOnly={isViewOnly}
+                          error={
+                            touched.workingProject && errors.workingProject
                           }
-                          {...textFieldProps}
+                          helperText={
+                            touched.workingProject && errors.workingProject
+                              ? "Required field"
+                              : ""
+                          }
                         />
-                        {touched.workingProject && errors.workingProject && (
-                          <div style={{ color: "crimson", fontSize: 12 }}>
-                            Required field
-                          </div>
-                        )}
                       </Grid>
 
                       <Grid size={{ xs: 12, sm: 6 }}>
-                        <LocalizationProvider dateAdapter={AdapterDateFns}>
-                          <DatePicker
-                            label="Joining Date"
-                            value={
-                              form.joiningDate
-                                ? new Date(
-                                    form.joiningDate
-                                      .split("/")
-                                      .reverse()
-                                      .join("-")
-                                  )
-                                : null
-                            }
-                            onChange={handleJoiningDateChange}
-                            format="dd/MM/yyyy"
-                            maxDate={new Date()}
-                            slotProps={{
-                              textField: {
-                                fullWidth: true,
-                                ...textFieldProps,
-                              },
-                            }}
-                            {...datePickerProps}
-                          />
-                        </LocalizationProvider>
-                        {touched.joiningDate && errors.joiningDate && (
-                          <div style={{ color: "crimson", fontSize: 12 }}>
-                            Required field
-                          </div>
-                        )}
+                        <DatePicker
+                          label="Joining Date"
+                          value={parseDateString(form.joiningDate)}
+                          onChange={handleJoiningDateChange}
+                          format="dd/MM/yyyy"
+                          maxDate={new Date()}
+                          slotProps={{
+                            textField: {
+                              fullWidth: true,
+                              error: touched.joiningDate && errors.joiningDate,
+                              helperText:
+                                touched.joiningDate && errors.joiningDate
+                                  ? "Required field"
+                                  : "",
+                              ...textFieldProps,
+                            },
+                          }}
+                          {...datePickerProps}
+                        />
                       </Grid>
 
                       <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField
-                          fullWidth
+                        <CustomInput
                           label="Location"
+                          name="location"
                           value={form.location}
-                          onChange={
-                            isViewOnly
-                              ? undefined
-                              : (e) => onInput("location", e.target.value)
+                          onInput={onInput}
+                          readOnly={isViewOnly}
+                          error={touched.location && errors.location}
+                          helperText={
+                            touched.location && errors.location
+                              ? "Required field"
+                              : ""
                           }
-                          {...textFieldProps}
                         />
-                        {touched.location && errors.location && (
-                          <div style={{ color: "crimson", fontSize: 12 }}>
-                            Required field
-                          </div>
-                        )}
                       </Grid>
 
                       <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField
-                          fullWidth
+                        <CustomInput
                           label="Position"
+                          name="position"
                           value={form.position}
-                          onChange={
-                            isViewOnly
-                              ? undefined
-                              : (e) => onInput("position", e.target.value)
+                          onInput={onInput}
+                          readOnly={isViewOnly}
+                          error={touched.position && errors.position}
+                          helperText={
+                            touched.position && errors.position
+                              ? "Required field"
+                              : ""
                           }
-                          {...textFieldProps}
                         />
-                        {touched.position && errors.position && (
-                          <div style={{ color: "crimson", fontSize: 12 }}>
-                            Required field
-                          </div>
-                        )}
                       </Grid>
 
                       <Grid size={{ xs: 12, sm: 6 }}>
-                        <FormControl fullWidth>
-                          <InputLabel id="work-format-label">
-                            Work Format
-                          </InputLabel>
-                          <Select
-                            labelId="work-format-label"
-                            label="Work Format"
-                            value={form.workFormat}
-                            onChange={
-                              isViewOnly
-                                ? undefined
-                                : (e) => onInput("workFormat", e.target.value)
-                            }
-                            {...selectProps}
-                          >
-                            <MenuItem value="Remote">Remote</MenuItem>
-                            <MenuItem value="In-Office">In-Office</MenuItem>
-                            <MenuItem value="Hybrid">Hybrid</MenuItem>
-                          </Select>
-                        </FormControl>
-                        {touched.workFormat && errors.workFormat && (
-                          <div style={{ color: "crimson", fontSize: 12 }}>
-                            Required field
-                          </div>
-                        )}
+                        <CustomInput
+                          select
+                          label="Work Format"
+                          name="workFormat"
+                          value={form.workFormat}
+                          onInput={onInput}
+                          readOnly={isViewOnly}
+                          error={touched.workFormat && errors.workFormat}
+                          helperText={
+                            touched.workFormat && errors.workFormat
+                              ? "Required field"
+                              : ""
+                          }
+                          options={workFormatOptions}
+                        />
                       </Grid>
+
+                      {/* Auto-generated Credentials Display */}
+                      {mode === "employee" &&
+                        generatedCredentials &&
+                        generatedCredentials.email &&
+                        !isViewOnly && (
+                          <Grid size={12}>
+                            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                              <Typography
+                                variant="subtitle2"
+                                className="text-blue-700 font-semibold mb-1"
+                              >
+                                Auto-generated Login Credentials:
+                              </Typography>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <Typography
+                                    variant="caption"
+                                    className="text-gray-600"
+                                  >
+                                    Email:
+                                  </Typography>
+                                  <Typography
+                                    variant="body2"
+                                    className="font-mono text-sm"
+                                  >
+                                    {generatedCredentials.email}
+                                  </Typography>
+                                </div>
+                                <div>
+                                  <Typography
+                                    variant="caption"
+                                    className="text-gray-600"
+                                  >
+                                    Password:
+                                  </Typography>
+                                  <Typography
+                                    variant="body2"
+                                    className="font-mono text-sm"
+                                  >
+                                    {generatedCredentials.password}
+                                  </Typography>
+                                </div>
+                              </div>
+                              <Typography
+                                variant="caption"
+                                className="text-gray-500 mt-2 block"
+                              >
+                                These credentials will be saved to Firebase Auth
+                                automatically. Employee will use these to login.
+                              </Typography>
+                              <Typography
+                                variant="caption"
+                                className="text-gray-500 mt-1 block"
+                              >
+                                Email format: name@lazysquad.com (all lowercase)
+                              </Typography>
+                              <Typography
+                                variant="caption"
+                                className="text-gray-500 mt-1 block"
+                              >
+                                Password format: NameEmployeeID (case-sensitive)
+                              </Typography>
+                            </div>
+                          </Grid>
+                        )}
                     </>
                   ) : (
                     /* Task-specific Fields */
                     <>
                       <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField
-                          fullWidth
+                        <CustomInput
+                          type="taskId"
                           label="Task ID"
-                          value={form.taskId ? `TID-${form.taskId}` : "TID-"}
-                          onChange={
-                            isViewOnly
-                              ? undefined
-                              : (e) =>
-                                  handleTaskIdInput(
-                                    e.target.value.replace("TID-", "")
-                                  )
+                          name="taskId"
+                          value={form.taskId}
+                          onInput={onInput}
+                          readOnly={isViewOnly}
+                          error={touched.taskId && errors.taskId}
+                          helperText={
+                            touched.taskId && errors.taskId
+                              ? errors.taskId === true
+                                ? "Required field - Enter 4 digits after TID-"
+                                : "Task ID already exists"
+                              : ""
                           }
+                          placeholder="TID-0000"
                           inputProps={{
                             inputMode: "numeric",
                             maxLength: 8,
-                            readOnly: isViewOnly,
                           }}
-                          placeholder="TID-0000"
-                          {...textFieldProps}
                         />
-                        {touched.taskId && errors.taskId && (
-                          <div style={{ color: "crimson", fontSize: 12 }}>
-                            {errors.taskId === true
-                              ? "Required field - Enter 4 digits after TID-"
-                              : "Task ID already exists"}
-                          </div>
-                        )}
                       </Grid>
 
                       <Grid size={{ xs: 12, sm: 6 }}>
-                        <FormControl fullWidth>
-                          <InputLabel id="assigned-to-label">
-                            Assigned To
-                          </InputLabel>
-                          <Select
-                            labelId="assigned-to-label"
-                            label="Assigned To"
-                            value={form.assignedTo}
-                            onChange={
-                              isViewOnly
-                                ? undefined
-                                : (e) => onInput("assignedTo", e.target.value)
-                            }
-                            {...selectProps}
-                          >
-                            {employees.map((employee) => (
-                              <MenuItem
-                                key={employee.id}
-                                value={`${employee.employeeCode} - ${employee.name}`}
-                              >
-                                {employee.employeeCode} - {employee.name}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                        {touched.assignedTo && errors.assignedTo && (
-                          <div style={{ color: "crimson", fontSize: 12 }}>
-                            Required field
-                          </div>
-                        )}
+                        <CustomInput
+                          select
+                          label="Assigned To"
+                          name="assignedTo"
+                          value={form.assignedTo}
+                          onInput={onInput}
+                          readOnly={isViewOnly}
+                          error={touched.assignedTo && errors.assignedTo}
+                          helperText={
+                            touched.assignedTo && errors.assignedTo
+                              ? "Required field"
+                              : ""
+                          }
+                          options={employeeOptions}
+                        />
                       </Grid>
 
+                      {/* Created At - Use DIRECT DatePicker (not CustomDatePicker) */}
                       <Grid size={{ xs: 12, sm: 6 }}>
                         <DatePicker
                           label="Created At"
                           value={
                             form.createdAt ? new Date(form.createdAt) : null
                           }
-                          onChange={
-                            isViewOnly ? undefined : handleCreatedAtChange
-                          }
+                          onChange={handleCreatedAtChange}
                           format="dd/MM/yyyy"
+                          slotProps={{
+                            textField: {
+                              fullWidth: true,
+                              error: touched.createdAt && errors.createdAt,
+                              helperText:
+                                touched.createdAt && errors.createdAt
+                                  ? "Required field"
+                                  : "",
+                              ...textFieldProps,
+                            },
+                          }}
+                          {...datePickerProps}
+                        />
+                      </Grid>
+
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <CustomInput
+                          type="number"
+                          label="Sprint Days"
+                          name="sprintDays"
+                          value={form.sprintDays}
+                          onInput={onInput}
+                          readOnly={isViewOnly}
+                          error={touched.sprintDays && errors.sprintDays}
+                          helperText={
+                            touched.sprintDays && errors.sprintDays
+                              ? "Required field"
+                              : ""
+                          }
+                        />
+                      </Grid>
+
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        {/* Changed from CustomDatePicker to DatePicker for End Date */}
+                        <DatePicker
+                          label="End Date"
+                          value={parseDateString(form.endDate)}
+                          onChange={handleEndDateChange}
+                          format="dd/MM/yyyy"
+                          disabled={true}
+                          readOnly={isViewOnly}
                           slotProps={{
                             textField: {
                               fullWidth: true,
@@ -867,52 +870,6 @@ const CustomModal = ({
                           }}
                           {...datePickerProps}
                         />
-                        {touched.createdAt && errors.createdAt && (
-                          <div style={{ color: "crimson", fontSize: 12 }}>
-                            Required field
-                          </div>
-                        )}
-                      </Grid>
-
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField
-                          fullWidth
-                          label="Sprint Days"
-                          type="number"
-                          value={form.sprintDays}
-                          onChange={
-                            isViewOnly
-                              ? undefined
-                              : (e) => onInput("sprintDays", e.target.value)
-                          }
-                          {...textFieldProps}
-                        />
-                        {touched.sprintDays && errors.sprintDays && (
-                          <div style={{ color: "crimson", fontSize: 12 }}>
-                            Required field
-                          </div>
-                        )}
-                      </Grid>
-
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <DatePicker
-                          label="End Date"
-                          value={form.endDate ? new Date(form.endDate) : null}
-                          readOnly
-                          disabled
-                          format="dd/MM/yyyy"
-                          slotProps={{
-                            textField: {
-                              fullWidth: true,
-                              ...textFieldProps,
-                            },
-                          }}
-                        />
-                        {touched.endDate && errors.endDate && (
-                          <div style={{ color: "crimson", fontSize: 12 }}>
-                            End date will be calculated automatically
-                          </div>
-                        )}
                       </Grid>
 
                       {/* Task Status Radio Buttons */}
@@ -927,9 +884,7 @@ const CustomModal = ({
                           <RadioGroup
                             row
                             value={form.status || "active"}
-                            onChange={
-                              isViewOnly ? undefined : handleRadioChange
-                            }
+                            onChange={handleRadioChange}
                             sx={{
                               display: "flex",
                               gap: 2,
@@ -938,27 +893,16 @@ const CustomModal = ({
                               pointerEvents: isViewOnly ? "none" : "auto",
                             }}
                           >
-                            <CustomRadio
-                              value="active"
-                              label="Active"
-                              color="#06b6d4"
-                              formStatus={form.status}
-                              readOnly={isViewOnly}
-                            />
-                            <CustomRadio
-                              value="completed"
-                              label="Completed"
-                              color="#10b981"
-                              formStatus={form.status}
-                              readOnly={isViewOnly}
-                            />
-                            <CustomRadio
-                              value="failed"
-                              label="Failed"
-                              color="#ef4444"
-                              formStatus={form.status}
-                              readOnly={isViewOnly}
-                            />
+                            {taskStatusOptions.map((option) => (
+                              <CustomRadio
+                                key={option.value}
+                                value={option.value}
+                                label={option.label}
+                                color={option.color}
+                                formStatus={form.status}
+                                readOnly={isViewOnly}
+                              />
+                            ))}
                           </RadioGroup>
                           {touched.status && errors.status && (
                             <div
@@ -982,37 +926,28 @@ const CustomModal = ({
             {/* Description Field (for Tasks) */}
             {!isEmployeeMode && (
               <Box sx={{ mt: 2 }}>
-                <TextField
-                  fullWidth
+                <CustomInput
                   multiline
                   rows={6}
                   label="Description"
+                  name="description"
                   value={form.description}
-                  onChange={
-                    isViewOnly
-                      ? undefined
-                      : (e) => onInput("description", e.target.value)
+                  onInput={onInput}
+                  readOnly={isViewOnly}
+                  error={touched.description && errors.description}
+                  helperText={
+                    touched.description && errors.description
+                      ? "Required field"
+                      : ""
                   }
                   sx={{
                     width: "100%",
                     "& .MuiOutlinedInput-root": {
                       fontSize: "16px",
                       lineHeight: "1.5",
-                      ...(isViewOnly && {
-                        backgroundColor: "#f5f5f5",
-                        cursor: "default",
-                      }),
                     },
                   }}
-                  InputProps={{
-                    readOnly: isViewOnly,
-                  }}
                 />
-                {touched.description && errors.description && (
-                  <div style={{ color: "crimson", fontSize: 12 }}>
-                    Required field
-                  </div>
-                )}
               </Box>
             )}
           </Box>
