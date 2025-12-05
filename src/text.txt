@@ -1,0 +1,1 @@
+make this all component each and everything will be responsive according laptopscreen, dekstop screen, tab screen, mobile screen, mini screen. layout eill fully fixed does not shake or shift or jump in any smallest to biggest screen.
