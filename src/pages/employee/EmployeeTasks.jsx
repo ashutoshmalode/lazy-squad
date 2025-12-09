@@ -15,10 +15,10 @@ import {
   Box,
 } from "@mui/material";
 import BoxIcon from "@mui/icons-material/Folder";
-import { useAppDispatch, useAppSelector } from "../../redux-toolkit/Hooks";
 import { useAuth } from "../../context/AuthContext";
-import { fetchEmployeeTasks } from "../../redux-toolkit/slices/taskSlice";
 import CustomModal from "../../components/CustomModal";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../../firebase/Firebase";
 
 // ---------------- STATUS CHIP ----------------
 function StatusChip({ status }) {
@@ -112,7 +112,7 @@ const TaskTable = ({ tasks = [], onRowClick, truncate }) => {
           <div className="flex items-center gap-3">
             <BoxIcon />
             <Typography variant="h6" sx={{ fontWeight: 700, color: "#fff" }}>
-              Tasks Table
+              My Tasks
             </Typography>
           </div>
 
@@ -147,7 +147,7 @@ const TaskTable = ({ tasks = [], onRowClick, truncate }) => {
           <Tab label="Active" />
           <Tab label="Completed" />
           <Tab label="Failed" />
-          <Tab label="History" />
+          <Tab label="All Tasks" />
         </Tabs>
       </div>
 
@@ -273,21 +273,138 @@ const TableContent = ({ tasks = [], onRowClick, truncate }) => {
 
 // ---------------- MAIN EMPLOYEE TASKS COMPONENT ----------------
 export default function EmployeeTasks() {
-  const dispatch = useAppDispatch();
-  const { tasks, loading, error } = useAppSelector((state) => state.tasks);
   const { user } = useAuth();
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
+  const [employeeTasks, setEmployeeTasks] = useState([]);
+  const [debugInfo, setDebugInfo] = useState("");
+  const [allTasks, setAllTasks] = useState([]);
   const fileInputRef = useRef(null);
 
-  // 🔥 FETCH EMPLOYEE-SPECIFIC TASKS
+  // 🔥 FETCH ALL TASKS DIRECTLY FROM FIRESTORE
   useEffect(() => {
-    if (user && user.name) {
-      dispatch(fetchEmployeeTasks(user.name));
+    const fetchAllTasks = async () => {
+      try {
+        console.log("📋 Fetching ALL tasks directly from Firestore...");
+        const tasksRef = collection(db, "tasks");
+        const querySnapshot = await getDocs(tasksRef);
+
+        const tasks = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+        console.log(`✅ Found ${tasks.length} total tasks`);
+        setAllTasks(tasks);
+
+        // Log all tasks for debugging
+        tasks.forEach((task, index) => {
+          console.log(`Task ${index + 1}:`, {
+            id: task.id,
+            name: task.name,
+            assignedTo: task.assignedTo,
+          });
+        });
+      } catch (error) {
+        console.error("❌ Error fetching tasks:", error);
+      }
+    };
+
+    fetchAllTasks();
+  }, []);
+
+  // 🔥 FILTER TASKS FOR CURRENT EMPLOYEE
+  useEffect(() => {
+    if (user && user.name && user.employeeCode && allTasks.length > 0) {
+      console.log(
+        `🔍 Filtering tasks for employee: ${user.name} (${user.employeeCode})`
+      );
+      console.log(`📊 Total tasks to filter: ${allTasks.length}`);
+
+      // Create search patterns
+      const employeeName = user.name;
+      const employeeCode = user.employeeCode;
+
+      // Pattern 1: "LSEMP0001 - Anirudh Malode" (full format)
+      const fullPattern = `${employeeCode} - ${employeeName}`;
+
+      // Pattern 2: Just the name part for partial matching
+      const nameOnly = employeeName;
+
+      console.log(`🔍 Looking for pattern: "${fullPattern}"`);
+      console.log(`🔍 Also checking for name: "${nameOnly}"`);
+
+      // Method 1: Exact match with full pattern
+      const exactMatchTasks = allTasks.filter(
+        (task) => task.assignedTo === fullPattern
+      );
+
+      console.log(
+        `✅ Exact match tasks (full pattern): ${exactMatchTasks.length}`
+      );
+
+      // Method 2: Contains employee name (case-insensitive)
+      const nameMatchTasks = allTasks.filter((task) =>
+        task.assignedTo?.toLowerCase().includes(employeeName.toLowerCase())
+      );
+
+      console.log(`✅ Name match tasks: ${nameMatchTasks.length}`);
+
+      // Method 3: Contains employee code
+      const codeMatchTasks = allTasks.filter((task) =>
+        task.assignedTo?.includes(employeeCode)
+      );
+
+      console.log(`✅ Code match tasks: ${codeMatchTasks.length}`);
+
+      // Method 4: Show ALL tasks for debugging
+      console.log("🔧 ALL TASKS WITH assignedTo VALUES:");
+      allTasks.forEach((task, index) => {
+        console.log(`   ${index + 1}. "${task.assignedTo}"`);
+        console.log(
+          `      Contains "${employeeName}"?`,
+          task.assignedTo?.toLowerCase().includes(employeeName.toLowerCase())
+        );
+        console.log(
+          `      Contains "${employeeCode}"?`,
+          task.assignedTo?.includes(employeeCode)
+        );
+        console.log(
+          `      Equals "${fullPattern}"?`,
+          task.assignedTo === fullPattern
+        );
+      });
+
+      // Use the best match (prefer exact match, then name match, then code match)
+      let filteredTasks = exactMatchTasks;
+
+      if (filteredTasks.length === 0 && nameMatchTasks.length > 0) {
+        filteredTasks = nameMatchTasks;
+        console.log("🔄 Using name match");
+      } else if (filteredTasks.length === 0 && codeMatchTasks.length > 0) {
+        filteredTasks = codeMatchTasks;
+        console.log("🔄 Using code match");
+      }
+
+      setEmployeeTasks(filteredTasks);
+
+      // Set debug info
+      setDebugInfo(`
+        Employee: ${employeeName}
+        Employee Code: ${employeeCode}
+        Search Pattern: "${fullPattern}"
+        
+        Matching Results:
+        - Exact pattern match: ${exactMatchTasks.length} tasks
+        - Name contains match: ${nameMatchTasks.length} tasks  
+        - Code contains match: ${codeMatchTasks.length} tasks
+        
+        Showing: ${filteredTasks.length} tasks
+      `);
     }
-  }, [dispatch, user]);
+  }, [user, allTasks]);
 
   // Handle task click to open modal with task details
   const handleTaskClick = (task) => {
@@ -328,37 +445,23 @@ export default function EmployeeTasks() {
   };
 
   // Calculate task counts for each category
-  const activeTasksCount = tasks.filter(
+  const activeTasksCount = employeeTasks.filter(
     (task) => task.status === "active"
   ).length;
-  const completedTasksCount = tasks.filter(
+  const completedTasksCount = employeeTasks.filter(
     (task) => task.status === "completed"
   ).length;
-  const failedTasksCount = tasks.filter(
+  const failedTasksCount = employeeTasks.filter(
     (task) => task.status === "failed"
   ).length;
-  const totalTasksCount = tasks.length;
+  const totalTasksCount = employeeTasks.length;
 
   return (
     <div className="w-full px-4 sm:px-6 md:px-10 py-4 sm:py-6">
       {/* Page Title */}
       <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent mb-4 sm:mb-6">
-        Employee Tasks
+        My Tasks
       </h1>
-
-      {/* Loading State */}
-      {loading && (
-        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-blue-600">Loading your tasks...</p>
-        </div>
-      )}
-
-      {/* Error State */}
-      {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-red-600">Error: {error}</p>
-        </div>
-      )}
 
       {/* Task Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -390,7 +493,7 @@ export default function EmployeeTasks() {
 
       {/* Task Table */}
       <TaskTable
-        tasks={tasks}
+        tasks={employeeTasks}
         onRowClick={handleTaskClick}
         truncate={truncateText}
       />

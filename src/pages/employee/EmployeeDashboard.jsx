@@ -34,14 +34,25 @@ const EmployeeDashboard = () => {
 
   // Additional protection - ensure only employee can access this dashboard
   useEffect(() => {
-    if (user && user.role !== "employee") {
-      navigate("/admin/admin-profile", { replace: true });
+    if (user) {
+      const userRole = user.role?.toLowerCase();
+      if (userRole !== "employee") {
+        navigate("/admin/admin-profile", { replace: true });
+      }
     }
   }, [user, navigate]);
 
-  // Redirect if not employee
-  if (user && user.role !== "employee") {
-    return <Navigate to="/admin/admin-profile" replace />;
+  // Redirect if not employee (case-insensitive check)
+  if (user) {
+    const userRole = user.role?.toLowerCase();
+    if (userRole !== "employee") {
+      return <Navigate to="/admin/admin-profile" replace />;
+    }
+  }
+
+  // If no user, redirect to login
+  if (!user) {
+    return <Navigate to="/log-in" replace />;
   }
 
   // Employee data

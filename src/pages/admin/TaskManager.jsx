@@ -240,12 +240,13 @@ export default function TaskManager() {
     if (editingTask === null) {
       const { nextNo, nextTaskId } = getNextTaskInfo();
 
+      // In TaskManager.jsx handleSubmit function, ensure:
       const newTask = {
         no: nextNo,
         name: form.name,
         taskId: `TID-${form.taskId || nextTaskId}`,
         description: form.description,
-        assignedTo: form.assignedTo,
+        assignedTo: form.assignedTo, // This should be the EXACT employee name
         createdAt: form.createdAt,
         sprint: `Sprint ${Math.floor(nextNo / 5) + 5}`,
         endDate: form.endDate,

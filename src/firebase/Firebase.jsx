@@ -2,25 +2,38 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 // Your web app's Firebase configuration
-// Replace with your actual Firebase config from Firebase Console
 const firebaseConfig = {
-  apiKey: "your-api-key",
-  authDomain: "your-project-id.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project-id.appspot.com",
-  messagingSenderId: "your-sender-id",
-  appId: "your-app-id",
+  apiKey: "AIzaSyBh7AWt-5BCeGe2CrrujbTaTzfJlKDIS28",
+  authDomain: "lazy-squad.firebaseapp.com",
+  projectId: "lazy-squad",
+  storageBucket: "lazy-squad.firebasestorage.app",
+  messagingSenderId: "923404258418",
+  appId: "1:923404258418:web:e6946d6f9d9b38c3e946eb",
+  measurementId: "G-4VBBW60Q9N",
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase ONLY if it hasn't been initialized
+let app;
+try {
+  app = initializeApp(firebaseConfig);
+  console.log("Firebase initialized successfully");
+} catch (error) {
+  if (error.code === "app/duplicate-app") {
+    // Firebase already initialized, get the existing app
+    app = getApp();
+    console.log("Firebase already initialized, using existing app");
+  } else {
+    console.error("Firebase initialization error:", error);
+    throw error;
+  }
+}
 
-// Initialize Firebase Authentication and get a reference to the service
+// Initialize Firebase services
 export const auth = getAuth(app);
-
-// Initialize Cloud Firestore and get a reference to the service
 export const db = getFirestore(app);
+export const storage = getStorage(app);
 
 export default app;

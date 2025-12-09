@@ -13,6 +13,11 @@ import {
   updateEmployeeAsync,
   deleteEmployeeAsync,
 } from "../../redux-toolkit/slices/EmployeeSlice";
+import {
+  createEmployeeUser,
+  deleteEmployeeUser,
+  updateEmployeeCredentials,
+} from "../../firebase/Auth";
 import CustomCard from "../../components/CustomCard";
 import CustomModal from "../../components/CustomModal";
 import CustomButton from "../../components/CustomButton";
@@ -39,6 +44,8 @@ export default function EmployeeManager() {
   const { employees, search, form, touched, editingEmployee, loading, error } =
     useAppSelector((state) => state.employees);
   const [modalOpen, setModalOpen] = useState(false);
+  const [generatedCredentials, setGeneratedCredentials] = useState(null);
+  const [isUpdatingCredentials, setIsUpdatingCredentials] = useState(false);
   const fileInputRef = useRef(null);
 
   // 🔥 FETCH EMPLOYEES ON COMPONENT MOUNT
@@ -84,6 +91,8 @@ export default function EmployeeManager() {
     dispatch(setEditingEmployee(null));
     dispatch(resetForm());
     dispatch(resetTouched());
+    setGeneratedCredentials(null);
+    setIsUpdatingCredentials(false);
     setModalOpen(true);
   };
 
@@ -116,6 +125,8 @@ export default function EmployeeManager() {
       })
     );
     dispatch(resetTouched());
+    setGeneratedCredentials(null);
+    setIsUpdatingCredentials(false);
     setModalOpen(true);
   };
 
@@ -123,6 +134,8 @@ export default function EmployeeManager() {
     setModalOpen(false);
     dispatch(setEditingEmployee(null));
     dispatch(resetForm());
+    setGeneratedCredentials(null);
+    setIsUpdatingCredentials(false);
   };
 
   // file -> dataURL preview
@@ -139,6 +152,38 @@ export default function EmployeeManager() {
   const handleInput = (key, value) => {
     dispatch(setForm({ [key]: value }));
     dispatch(setTouched({ [key]: true }));
+
+    // Auto-generate email when name changes (only for new employee)
+    if (key === "name" && value && editingEmployee === null) {
+      const generatedEmail = generateEmployeeEmail(value);
+      dispatch(setForm({ email: generatedEmail }));
+    }
+
+    // Check if email or employee code is being updated for existing employee
+    if (editingEmployee !== null) {
+      if (
+        (key === "email" && value !== editingEmployee.email) ||
+        (key === "employeeCodeDigits" &&
+          `LSEMP${value}` !== editingEmployee.employeeCode)
+      ) {
+        setIsUpdatingCredentials(true);
+      } else if (
+        key === "email" &&
+        value === editingEmployee.email &&
+        key === "employeeCodeDigits" &&
+        `LSEMP${value}` === editingEmployee.employeeCode
+      ) {
+        setIsUpdatingCredentials(false);
+      }
+    }
+  };
+
+  // Helper function to generate email from name
+  const generateEmployeeEmail = (name) => {
+    const nameParts = name.trim().split(" ");
+    const firstName = nameParts[0]?.toLowerCase() || "";
+    const lastName = nameParts.slice(1).join("").toLowerCase() || "";
+    return `${firstName}${lastName}@lazysquad.com`;
   };
 
   // form validation for employees
@@ -163,7 +208,7 @@ export default function EmployeeManager() {
 
   const formIsValid = Object.values(errors).every((v) => v === false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const allTouched = Object.keys(errors).reduce((acc, k) => {
       acc[k] = true;
@@ -181,7 +226,7 @@ export default function EmployeeManager() {
     const newEmployee = {
       employeeCode,
       name: form.name.trim(),
-      email: form.email.trim(),
+      email: form.email.trim(), // Use the exact email from form
       phone: `+91 ${form.phoneDigits}`,
       position: form.position,
       avatarColor: form.avatarColor || "#888",
@@ -198,29 +243,97 @@ export default function EmployeeManager() {
     };
 
     if (editingEmployee === null) {
-      // 🔥 FIREBASE: ADD EMPLOYEE
-      dispatch(addEmployeeAsync(newEmployee));
-    } else {
-      // 🔥 FIREBASE: UPDATE EMPLOYEE
-      dispatch(
-        updateEmployeeAsync({
-          id: editingEmployee.id,
-          employeeData: newEmployee,
-        })
-      );
-    }
+      try {
+        // Generate credentials for display
+        const generatedEmail = form.email.trim();
+        const generatedPassword = employeeCode; // Use Employee ID as password
 
-    setModalOpen(false);
-    dispatch(resetForm());
+        // First create Firebase Auth user with EXACT email from form
+        await createEmployeeUser({
+          ...newEmployee,
+          name: form.name.trim(),
+          email: form.email.trim(), // Use exact email
+          employeeCode: employeeCode,
+        });
+
+        // Set generated credentials for display
+        setGeneratedCredentials({
+          email: generatedEmail,
+          password: generatedPassword,
+        });
+
+        // Then add to Firestore employees collection
+        dispatch(addEmployeeAsync(newEmployee));
+
+        // Don't close modal yet - show credentials
+        // Modal will close after user sees the credentials
+      } catch (error) {
+        console.error("Error creating employee user:", error);
+        alert(`Error creating employee: ${error.message}`);
+        return;
+      }
+    } else {
+      try {
+        // Check if credentials need to be updated
+        const oldEmail = editingEmployee.email;
+        const oldEmployeeCode = editingEmployee.employeeCode;
+        const newEmail = form.email.trim();
+        const newEmployeeCode = employeeCode;
+
+        if (
+          isUpdatingCredentials &&
+          (oldEmail !== newEmail || oldEmployeeCode !== newEmployeeCode)
+        ) {
+          // Update Firebase Auth credentials
+          await updateEmployeeCredentials(oldEmail, newEmail, newEmployeeCode);
+        }
+
+        // 🔥 FIREBASE: UPDATE EMPLOYEE
+        dispatch(
+          updateEmployeeAsync({
+            id: editingEmployee.id,
+            employeeData: newEmployee,
+          })
+        );
+        setModalOpen(false);
+        dispatch(resetForm());
+        setIsUpdatingCredentials(false);
+        alert("Employee updated successfully!");
+      } catch (error) {
+        console.error("Error updating employee:", error);
+        alert(`Error updating employee: ${error.message}`);
+      }
+    }
   };
 
   // Delete employee function
-  const handleDeleteEmployee = () => {
+  const handleDeleteEmployee = async () => {
     if (editingEmployee) {
-      // 🔥 FIREBASE: DELETE EMPLOYEE
-      dispatch(deleteEmployeeAsync(editingEmployee.id));
-      setModalOpen(false);
-      dispatch(resetForm());
+      if (
+        window.confirm(
+          `Are you sure you want to delete ${editingEmployee.name}? This will remove ALL their data including login credentials. This action cannot be undone.`
+        )
+      ) {
+        try {
+          // First delete from Firebase Auth and Firestore
+          await deleteEmployeeUser(editingEmployee);
+
+          // Then delete from Redux/Firestore
+          dispatch(deleteEmployeeAsync(editingEmployee.id));
+
+          setModalOpen(false);
+          dispatch(resetForm());
+
+          alert(
+            `${editingEmployee.name} has been completely deleted from the system.`
+          );
+        } catch (error) {
+          console.error("Error deleting employee:", error);
+          alert(
+            `Error deleting employee: ${error.message}\n\nYou may need to manually clean up from Firebase Console:\n1. Authentication → Delete user\n2. Firestore → Delete from employees & users collections`
+          );
+        }
+      }
     }
   };
 
@@ -289,6 +402,8 @@ export default function EmployeeManager() {
         onFileChange={handleFileChange}
         onInput={handleInput}
         nextEmployeeCodeDigits={nextEmployeeCodeDigits}
+        generatedCredentials={generatedCredentials}
+        isUpdatingCredentials={isUpdatingCredentials}
       />
     </Box>
   );

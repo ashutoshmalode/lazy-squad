@@ -1,9 +1,18 @@
 import { useState, useEffect } from "react";
-import { Button, TextField, Typography } from "@mui/material";
+import {
+  Button,
+  TextField,
+  Typography,
+  IconButton,
+  InputAdornment,
+} from "@mui/material";
 import Box from "@mui/material/Box";
 import Container from "@mui/material/Container";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { loginUser } from "../../firebase/Auth";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
 function Login() {
   const navigate = useNavigate();
@@ -11,6 +20,8 @@ function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     window.history.replaceState(null, "", "/log-in");
@@ -36,38 +47,74 @@ function Login() {
     }
   }, [user, navigate]);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setError("");
+    setLoading(true);
 
     if (!email || !password) {
       setError("Please enter both email and password");
+      setLoading(false);
       return;
     }
 
-    if (
-      email === "ashutoshmalode@lazysquad.com" &&
-      password === "AshutoshMalodeLSADM0001"
-    ) {
+    // Check for admin login (keep hardcoded)
+    if (email === "ashutoshmalode@lazysquad.com" && password === "LSADM0001") {
       const userData = {
-        email: "ashutosh@lazysquad.com",
+        email: "ashutoshmalode@lazysquad.com",
         name: "Ashutosh Malode",
         role: "admin",
         avatarText: "ADM",
+        employeeCode: "LSADM0001",
       };
       login(userData);
-    } else if (
-      email === "employee@lazysquad.com" &&
-      password === "employee123"
-    ) {
-      const userData = {
-        email: "employee@lazysquad.com",
-        name: "First User",
-        role: "employee",
-        avatarText: "EMP",
-      };
-      login(userData);
-    } else {
-      setError("Invalid email or password");
+      setLoading(false);
+      return;
+    }
+
+    // For non-admin users, use Firebase authentication
+    try {
+      const userData = await loginUser(email, password);
+
+      if (userData) {
+        console.log("User data received from loginUser:", userData);
+        // Check if user is an employee (case-insensitive check)
+        const userRole = userData.role?.toLowerCase();
+        if (userRole === "employee") {
+          login(userData);
+        } else {
+          console.log("User role is not employee:", userData.role);
+          setError("Access denied. Employee account required.");
+        }
+      } else {
+        setError("Invalid email or password");
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+
+      // Handle specific Firebase errors
+      if (error.code === "auth/user-not-found") {
+        setError(`No employee found with email: ${email}`);
+      } else if (error.code === "auth/wrong-password") {
+        setError(
+          "Incorrect password. Use Employee ID as password (e.g., LSEMP0001)"
+        );
+      } else if (error.code === "auth/invalid-email") {
+        setError("Invalid email format");
+      } else if (error.code === "auth/too-many-requests") {
+        setError("Too many failed attempts. Please try again later");
+      } else if (error.code === "auth/invalid-credential") {
+        setError(
+          "Invalid credentials. Please check your email and Employee ID"
+        );
+      } else if (error.message === "auth/email-already-in-use") {
+        setError(
+          "Email already exists with different credentials. Please contact admin."
+        );
+      } else {
+        setError("Login failed. Please check your credentials");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -75,6 +122,14 @@ function Login() {
     if (e.key === "Enter") {
       handleLogin();
     }
+  };
+
+  const handleClickShowPassword = () => {
+    setShowPassword(!showPassword);
+  };
+
+  const handleMouseDownPassword = (event) => {
+    event.preventDefault();
   };
 
   if (user) {
@@ -120,6 +175,7 @@ function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               onKeyPress={handleKeyPress}
+              disabled={loading}
               sx={{
                 input: { color: "white" },
                 label: { color: "#cfcfcf" },
@@ -132,14 +188,30 @@ function Login() {
             />
 
             <TextField
-              label="Password"
-              placeholder="Enter your password"
-              type="password"
+              label="Password (Employee ID)"
+              placeholder="Enter your Employee ID"
+              type={showPassword ? "text" : "password"}
               variant="outlined"
               fullWidth
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyPress={handleKeyPress}
+              disabled={loading}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="toggle password visibility"
+                      onClick={handleClickShowPassword}
+                      onMouseDown={handleMouseDownPassword}
+                      edge="end"
+                      sx={{ color: "#cfcfcf" }}
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
               sx={{
                 input: { color: "white" },
                 label: { color: "#cfcfcf" },
@@ -165,15 +237,20 @@ function Login() {
               variant="contained"
               fullWidth
               onClick={handleLogin}
+              disabled={loading}
               sx={{
                 bgcolor: "#47ced4",
                 paddingY: "10px",
                 fontWeight: "600",
                 "&:hover": { bgcolor: "#34a1a6" },
                 borderRadius: "10px",
+                "&:disabled": {
+                  bgcolor: "#cccccc",
+                  color: "#666666",
+                },
               }}
             >
-              Log In
+              {loading ? "Logging in..." : "Log In"}
             </Button>
 
             <Box sx={{ mt: 2, textAlign: "center" }}>
@@ -181,10 +258,10 @@ function Login() {
                 Demo Credentials:
               </Typography>
               <Typography sx={{ color: "#bbbbbb", fontSize: "11px" }}>
-                Admin: ashutoshmalode@lazysquad.com / AshutoshMalodeLSADM0001
+                Admin: ashutoshmalode@lazysquad.com / LSADM0001
               </Typography>
-              <Typography sx={{ color: "#bbbbbb", fontSize: "11px" }}>
-                Employee: employee@lazysquad.com / employee123
+              <Typography sx={{ color: "#bbbbbb", fontSize: "11px", mt: 0.5 }}>
+                Employee: Use exact employee email and Employee ID
               </Typography>
             </Box>
           </Box>

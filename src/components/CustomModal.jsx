@@ -18,7 +18,6 @@ import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import CustomInput from "./CustomInput";
-import CustomDatePicker from "./CustomDatePicker";
 import CustomRadio from "./CustomRadio";
 
 const CustomModal = ({
@@ -812,7 +811,7 @@ const CustomModal = ({
                         />
                       </Grid>
 
-                      {/* Created At - Use DIRECT DatePicker (not CustomDatePicker) */}
+                      {/* Created At - Use DIRECT DatePicker */}
                       <Grid size={{ xs: 12, sm: 6 }}>
                         <DatePicker
                           label="Created At"
@@ -854,7 +853,7 @@ const CustomModal = ({
                       </Grid>
 
                       <Grid size={{ xs: 12, sm: 6 }}>
-                        {/* Changed from CustomDatePicker to DatePicker for End Date */}
+                        {/* Changed DatePicker for End Date */}
                         <DatePicker
                           label="End Date"
                           value={parseDateString(form.endDate)}
