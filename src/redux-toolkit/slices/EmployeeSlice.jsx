@@ -25,9 +25,20 @@ export const updateEmployeeAsync = createAsyncThunk(
 
 export const deleteEmployeeAsync = createAsyncThunk(
   "employees/deleteEmployee",
-  async (id) => {
-    await employeeService.deleteEmployee(id);
-    return id;
+  async (id, { rejectWithValue }) => {
+    try {
+      await employeeService.deleteEmployee(id);
+      return id;
+    } catch (error) {
+      // Don't throw error for "not found" errors during deletion
+      if (
+        error.message.includes("not found") ||
+        error.message.includes("Not found")
+      ) {
+        return id; // Still return the id so it can be removed from state
+      }
+      return rejectWithValue(error.message);
+    }
   }
 );
 
@@ -57,6 +68,7 @@ const employeeSlice = createSlice({
     touched: {},
     editingEmployee: null,
     loading: false,
+    initialLoad: true, // NEW: Track initial load separately
     error: null,
   },
   reducers: {
@@ -101,6 +113,9 @@ const employeeSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    setInitialLoadComplete: (state) => {
+      state.initialLoad = false;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -111,10 +126,12 @@ const employeeSlice = createSlice({
       })
       .addCase(fetchEmployees.fulfilled, (state, action) => {
         state.loading = false;
+        state.initialLoad = false; // Mark initial load as complete
         state.employees = action.payload;
       })
       .addCase(fetchEmployees.rejected, (state, action) => {
         state.loading = false;
+        state.initialLoad = false; // Mark initial load as complete even if error
         state.error = action.error.message;
       })
       // Add Employee
@@ -148,20 +165,34 @@ const employeeSlice = createSlice({
         state.loading = false;
         state.error = action.error.message;
       })
-      // Delete Employee
+      // Delete Employee - FIXED: Handle "not found" errors gracefully
       .addCase(deleteEmployeeAsync.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(deleteEmployeeAsync.fulfilled, (state, action) => {
         state.loading = false;
+        state.error = null; // Clear any errors
         state.employees = state.employees.filter(
           (emp) => emp.id !== action.payload
         );
       })
       .addCase(deleteEmployeeAsync.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message;
+        // Only set error if it's not a "not found" error
+        if (
+          !action.payload?.includes("not found") &&
+          !action.payload?.includes("Not found")
+        ) {
+          state.error = action.payload || action.error.message;
+        } else {
+          // If it's a "not found" error, still remove the employee from state
+          const employeeId = action.meta.arg;
+          state.employees = state.employees.filter(
+            (emp) => emp.id !== employeeId
+          );
+          state.error = null; // Don't show error for "not found" during deletion
+        }
       });
   },
 });
@@ -175,6 +206,7 @@ export const {
   resetTouched,
   setEditingEmployee,
   clearError,
+  setInitialLoadComplete,
 } = employeeSlice.actions;
 
 export default employeeSlice.reducer;

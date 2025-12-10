@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState, useEffect } from "react";
-import { Box } from "@mui/material";
+import { Box, Snackbar, Alert } from "@mui/material";
 import { useAppDispatch, useAppSelector } from "../../redux-toolkit/Hooks";
 import {
   setSearch,
@@ -12,6 +12,7 @@ import {
   addEmployeeAsync,
   updateEmployeeAsync,
   deleteEmployeeAsync,
+  clearError,
 } from "../../redux-toolkit/slices/EmployeeSlice";
 import {
   createEmployeeUser,
@@ -46,6 +47,8 @@ export default function EmployeeManager() {
   const [modalOpen, setModalOpen] = useState(false);
   const [generatedCredentials, setGeneratedCredentials] = useState(null);
   const [isUpdatingCredentials, setIsUpdatingCredentials] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deleteSuccess, setDeleteSuccess] = useState(false);
   const fileInputRef = useRef(null);
 
   // 🔥 FETCH EMPLOYEES ON COMPONENT MOUNT
@@ -53,13 +56,28 @@ export default function EmployeeManager() {
     dispatch(fetchEmployees());
   }, [dispatch]);
 
-  // filtered list
+  // Clear error after some time
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        dispatch(clearError());
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [error, dispatch]);
+
+  // filtered list - filter out any null/undefined employees
   const filteredEmployees = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return employees;
-    return employees.filter((emp) => {
+
+    // First filter out any invalid employees
+    const validEmployees = employees.filter((emp) => emp && emp.id);
+
+    if (!q) return validEmployees;
+
+    return validEmployees.filter((emp) => {
       return (
-        emp.name.toLowerCase().includes(q) ||
+        emp.name?.toLowerCase().includes(q) ||
         (emp.employeeCode || "").toLowerCase().includes(q) ||
         (emp.id || "").toLowerCase().includes(q) ||
         (emp.position || "").toLowerCase().includes(q) ||
@@ -93,11 +111,14 @@ export default function EmployeeManager() {
     dispatch(resetTouched());
     setGeneratedCredentials(null);
     setIsUpdatingCredentials(false);
+    setIsSubmitting(false);
     setModalOpen(true);
   };
 
   // open modal for edit
   const handleOpenEdit = (employee) => {
+    if (!employee || !employee.id) return; // Don't open modal for invalid employees
+
     dispatch(setEditingEmployee(employee));
     dispatch(
       setForm({
@@ -110,23 +131,24 @@ export default function EmployeeManager() {
           .replace(/\D/g, "")
           .slice(0, 10),
         dob: employee.dob || "",
-        bloodGroup: employee.bloodGroup || "",
-        department: employee.department || "",
-        role: employee.role || "",
+        department: employee.department || "IT & Software",
+        role: employee.role || "Employee",
         employeeCodeDigits: (employee.employeeCode || "")
           .replace(/^LSEMP/, "")
           .slice(0, 4),
         designation: employee.designation || "",
-        workingProject: employee.workingProject || "",
+        workingProject: employee.workingProject || "Lazy Squad",
         joiningDate: employee.joiningDate || "",
         location: employee.location || "",
         workFormat: employee.workFormat || "",
         position: employee.position || "",
+        nationality: employee.nationality || "Indian",
       })
     );
     dispatch(resetTouched());
     setGeneratedCredentials(null);
     setIsUpdatingCredentials(false);
+    setIsSubmitting(false);
     setModalOpen(true);
   };
 
@@ -136,6 +158,9 @@ export default function EmployeeManager() {
     dispatch(resetForm());
     setGeneratedCredentials(null);
     setIsUpdatingCredentials(false);
+    setIsSubmitting(false);
+    // Clear any errors when closing modal
+    dispatch(clearError());
   };
 
   // file -> dataURL preview
@@ -186,37 +211,46 @@ export default function EmployeeManager() {
     return `${firstName}${lastName}@lazysquad.com`;
   };
 
-  // form validation for employees
+  // FIXED: form validation for employees - only validate fields that are actually required
   const errors = {
     name: !validateName(form.name || ""),
     email: !validateEmail(form.email || ""),
     phoneDigits: !validatePhoneDigits(form.phoneDigits || ""),
     dob: !validateDOB(form.dob || ""),
-    bloodGroup: !form.bloodGroup,
-    department: !form.department,
-    role: !form.role,
+    // Department, role, workingProject, and nationality are disabled with defaults, so no validation needed
     employeeCodeDigits:
       !fourDigitNumber(form.employeeCodeDigits || "") ||
       (editingEmployee === null && isEmployeeIdExists(form.employeeCodeDigits)),
     designation: !form.designation,
-    workingProject: !form.workingProject,
     joiningDate: !form.joiningDate,
     location: !form.location,
     workFormat: !form.workFormat,
-    position: !form.position,
   };
 
   const formIsValid = Object.values(errors).every((v) => v === false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const allTouched = Object.keys(errors).reduce((acc, k) => {
-      acc[k] = true;
-      return acc;
-    }, {});
-    dispatch(setTouched(allTouched));
+    setIsSubmitting(true);
 
-    if (!formIsValid) return;
+    // Only touch the fields that are actually being validated
+    const fieldsToTouch = {
+      name: true,
+      email: true,
+      phoneDigits: true,
+      dob: true,
+      employeeCodeDigits: true,
+      designation: true,
+      joiningDate: true,
+      location: true,
+      workFormat: true,
+    };
+    dispatch(setTouched(fieldsToTouch));
+
+    if (!formIsValid) {
+      setIsSubmitting(false);
+      return;
+    }
 
     // Auto-generate employee code if empty during submission
     const employeeCodeDigits =
@@ -232,14 +266,15 @@ export default function EmployeeManager() {
       avatarColor: form.avatarColor || "#888",
       avatarDataUrl: form.avatarDataUrl || null,
       dob: form.dob,
-      bloodGroup: form.bloodGroup,
-      department: form.department,
-      role: form.role,
+      // Removed: bloodGroup, address, maritalStatus
+      department: form.department || "IT & Software",
+      role: form.role || "Employee",
       designation: form.designation,
-      workingProject: form.workingProject,
+      workingProject: form.workingProject || "Lazy Squad",
       joiningDate: form.joiningDate,
       location: form.location,
       workFormat: form.workFormat,
+      nationality: form.nationality || "Indian",
     };
 
     if (editingEmployee === null) {
@@ -256,21 +291,19 @@ export default function EmployeeManager() {
           employeeCode: employeeCode,
         });
 
-        // Set generated credentials for display
-        setGeneratedCredentials({
-          email: generatedEmail,
-          password: generatedPassword,
-        });
-
         // Then add to Firestore employees collection
-        dispatch(addEmployeeAsync(newEmployee));
+        await dispatch(addEmployeeAsync(newEmployee));
 
-        // Don't close modal yet - show credentials
-        // Modal will close after user sees the credentials
+        // Clear the form and close modal
+        dispatch(resetForm());
+        dispatch(resetTouched());
+        setGeneratedCredentials(null);
+        setModalOpen(false);
       } catch (error) {
         console.error("Error creating employee user:", error);
         alert(`Error creating employee: ${error.message}`);
-        return;
+      } finally {
+        setIsSubmitting(false);
       }
     } else {
       try {
@@ -289,24 +322,27 @@ export default function EmployeeManager() {
         }
 
         // 🔥 FIREBASE: UPDATE EMPLOYEE
-        dispatch(
+        await dispatch(
           updateEmployeeAsync({
             id: editingEmployee.id,
             employeeData: newEmployee,
           })
         );
+
+        // Close modal and reset form
         setModalOpen(false);
         dispatch(resetForm());
         setIsUpdatingCredentials(false);
-        alert("Employee updated successfully!");
       } catch (error) {
         console.error("Error updating employee:", error);
         alert(`Error updating employee: ${error.message}`);
+      } finally {
+        setIsSubmitting(false);
       }
     }
   };
 
-  // Delete employee function
+  // Delete employee function - FIXED
   const handleDeleteEmployee = async () => {
     if (editingEmployee) {
       if (
@@ -315,18 +351,28 @@ export default function EmployeeManager() {
         )
       ) {
         try {
+          // Clear any existing errors before deletion
+          dispatch(clearError());
+
+          // Get the employee ID before deletion for reference
+          const deletedEmployeeId = editingEmployee.id;
+          const deletedEmployeeName = editingEmployee.name;
+
           // First delete from Firebase Auth and Firestore
           await deleteEmployeeUser(editingEmployee);
 
           // Then delete from Redux/Firestore
-          dispatch(deleteEmployeeAsync(editingEmployee.id));
+          await dispatch(deleteEmployeeAsync(deletedEmployeeId));
 
+          // Show success message
+          setDeleteSuccess(true);
+
+          // Close modal immediately
           setModalOpen(false);
           dispatch(resetForm());
+          dispatch(setEditingEmployee(null));
 
-          alert(
-            `${editingEmployee.name} has been completely deleted from the system.`
-          );
+          console.log(`Employee ${deletedEmployeeName} deleted successfully`);
         } catch (error) {
           console.error("Error deleting employee:", error);
           alert(
@@ -337,8 +383,29 @@ export default function EmployeeManager() {
     }
   };
 
+  // Handle snackbar close
+  const handleSnackbarClose = () => {
+    setDeleteSuccess(false);
+  };
+
   return (
     <Box sx={{ p: 4 }}>
+      {/* Success Snackbar */}
+      <Snackbar
+        open={deleteSuccess}
+        autoHideDuration={3000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <Alert
+          onClose={handleSnackbarClose}
+          severity="success"
+          sx={{ width: "100%" }}
+        >
+          Employee deleted successfully!
+        </Alert>
+      </Snackbar>
+
       {/* header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent">
@@ -355,8 +422,8 @@ export default function EmployeeManager() {
         </div>
       )}
 
-      {/* Error State */}
-      {error && (
+      {/* Error State - Show all errors except during delete success */}
+      {error && !deleteSuccess && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-red-600">Error: {error}</p>
         </div>
@@ -404,6 +471,7 @@ export default function EmployeeManager() {
         nextEmployeeCodeDigits={nextEmployeeCodeDigits}
         generatedCredentials={generatedCredentials}
         isUpdatingCredentials={isUpdatingCredentials}
+        isSubmitting={isSubmitting}
       />
     </Box>
   );

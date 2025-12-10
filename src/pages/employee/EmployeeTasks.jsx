@@ -216,7 +216,8 @@ const TableContent = ({ tasks = [], onRowClick, truncate }) => {
         </TableHead>
 
         <TableBody>
-          {(tasks || []).map((t) => (
+          {/* Sort tasks by createdAt date (newest first) but show sequential numbers */}
+          {tasks.map((t, index) => (
             <TableRow
               key={t.id || t.taskId}
               hover
@@ -230,7 +231,8 @@ const TableContent = ({ tasks = [], onRowClick, truncate }) => {
               }}
               onClick={() => handleRowClick(t)}
             >
-              <TableCell>{t.no}</TableCell>
+              {/* Show sequential number starting from 1 */}
+              <TableCell>{index + 1}</TableCell>
 
               <TableCell className="truncate">{truncate(t.name, 20)}</TableCell>
 
@@ -305,6 +307,7 @@ export default function EmployeeTasks() {
             id: task.id,
             name: task.name,
             assignedTo: task.assignedTo,
+            createdAt: task.createdAt,
           });
         });
       } catch (error) {
@@ -388,7 +391,20 @@ export default function EmployeeTasks() {
         console.log("🔄 Using code match");
       }
 
-      setEmployeeTasks(filteredTasks);
+      // Sort tasks by created date (newest first)
+      const sortedTasks = [...filteredTasks].sort((a, b) => {
+        const dateA = new Date(a.createdAt || "1970-01-01");
+        const dateB = new Date(b.createdAt || "1970-01-01");
+        return dateB - dateA; // Newest first
+      });
+
+      // Add sequential display numbers
+      const tasksWithDisplayNumbers = sortedTasks.map((task, index) => ({
+        ...task,
+        displayNo: index + 1, // Add sequential number starting from 1
+      }));
+
+      setEmployeeTasks(tasksWithDisplayNumbers);
 
       // Set debug info
       setDebugInfo(`
@@ -401,7 +417,7 @@ export default function EmployeeTasks() {
         - Name contains match: ${nameMatchTasks.length} tasks  
         - Code contains match: ${codeMatchTasks.length} tasks
         
-        Showing: ${filteredTasks.length} tasks
+        Showing: ${filteredTasks.length} tasks (sorted newest first)
       `);
     }
   }, [user, allTasks]);

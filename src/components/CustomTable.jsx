@@ -94,7 +94,7 @@ const CustomTable = ({ tasks, onRowClick, truncate }) => {
           </TableHead>
 
           <TableBody>
-            {tasks.map((t) => (
+            {tasks.map((t, index) => (
               <TableRow
                 key={t.taskId}
                 hover
@@ -108,7 +108,8 @@ const CustomTable = ({ tasks, onRowClick, truncate }) => {
                 }}
                 onClick={() => onRowClick(t)}
               >
-                <TableCell>{t.no}</TableCell>
+                {/* Use displayNo if available, otherwise use index + 1 */}
+                <TableCell>{t.displayNo || index + 1}</TableCell>
 
                 <TableCell className="truncate">
                   {truncate(t.name, 20)}
@@ -134,6 +135,17 @@ const CustomTable = ({ tasks, onRowClick, truncate }) => {
                 </TableCell>
               </TableRow>
             ))}
+
+            {/* Empty state */}
+            {tasks.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={8} align="center" sx={{ py: 3 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    No tasks found for this category.
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </TableContainer>

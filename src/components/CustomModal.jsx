@@ -11,6 +11,7 @@ import {
   Box,
   RadioGroup,
   Typography,
+  CircularProgress,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import PhotoCamera from "@mui/icons-material/PhotoCamera";
@@ -38,6 +39,7 @@ const CustomModal = ({
   employees = [],
   readOnly = false,
   generatedCredentials,
+  isSubmitting = false,
 }) => {
   const isEmployeeMode = mode === "employee";
   const isEditing = editingItem !== null;
@@ -58,7 +60,7 @@ const CustomModal = ({
   const handleSubmitForm = (e) => {
     e.preventDefault();
 
-    if (isViewOnly) return; // Don't submit in view-only mode
+    if (isViewOnly || isSubmitting) return; // Don't submit in view-only mode or while submitting
 
     // Auto-capitalize name before submission
     if (isEmployeeMode && form.name) {
@@ -146,7 +148,7 @@ const CustomModal = ({
   };
 
   const handleDeleteClick = () => {
-    if (isViewOnly) return;
+    if (isViewOnly || isSubmitting) return;
     if (onDelete) {
       onDelete();
     }
@@ -172,9 +174,21 @@ const CustomModal = ({
     if (isViewOnly) return "Close";
 
     if (isEmployeeMode) {
-      return isEditing ? "Update" : "Submit";
+      return isEditing
+        ? isSubmitting
+          ? "Updating..."
+          : "Update"
+        : isSubmitting
+        ? "Creating..."
+        : "Submit";
     } else {
-      return isEditing ? "Update Task" : "Assign Task";
+      return isEditing
+        ? isSubmitting
+          ? "Updating..."
+          : "Update Task"
+        : isSubmitting
+        ? "Assigning..."
+        : "Assign Task";
     }
   };
 
@@ -220,27 +234,7 @@ const CustomModal = ({
     }
   };
 
-  // Blood group options
-  const bloodGroupOptions = [
-    { value: "A", label: "A" },
-    { value: "A+", label: "A+" },
-    { value: "B", label: "B" },
-    { value: "B+", label: "B+" },
-    { value: "AB+", label: "AB+" },
-    { value: "AB-", label: "AB-" },
-    { value: "O+", label: "O+" },
-    { value: "O-", label: "O-" },
-  ];
-
-  // Marital status options
-  const maritalStatusOptions = [
-    { value: "Single", label: "Single" },
-    { value: "Married", label: "Married" },
-    { value: "Divorced", label: "Divorced" },
-    { value: "Widowed", label: "Widowed" },
-  ];
-
-  // Nationality options
+  // Nationality options - Indian is default
   const nationalityOptions = [
     { value: "Indian", label: "Indian" },
     { value: "American", label: "American" },
@@ -248,6 +242,29 @@ const CustomModal = ({
     { value: "Canadian", label: "Canadian" },
     { value: "Australian", label: "Australian" },
     { value: "Other", label: "Other" },
+  ];
+
+  // Department options - IT & Software is default
+  const departmentOptions = [
+    { value: "IT & Software", label: "IT & Software" },
+    { value: "Human Resources", label: "Human Resources" },
+    { value: "Marketing", label: "Marketing" },
+    { value: "Finance", label: "Finance" },
+    { value: "Operations", label: "Operations" },
+    { value: "Sales", label: "Sales" },
+    { value: "Design", label: "Design" },
+    { value: "Other", label: "Other" },
+  ];
+
+  // Role options - Employee is default
+  const roleOptions = [
+    { value: "Employee", label: "Employee" },
+    { value: "Team Lead", label: "Team Lead" },
+    { value: "Manager", label: "Manager" },
+    { value: "Director", label: "Director" },
+    { value: "VP", label: "VP" },
+    { value: "CEO", label: "CEO" },
+    { value: "Intern", label: "Intern" },
   ];
 
   // Work format options
@@ -274,7 +291,7 @@ const CustomModal = ({
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Dialog
         open={open}
-        onClose={handleCloseModal}
+        onClose={isSubmitting ? undefined : handleCloseModal}
         maxWidth="md"
         fullWidth
         disableRestoreFocus
@@ -285,7 +302,7 @@ const CustomModal = ({
         }}
         slotProps={{
           backdrop: {
-            style: { pointerEvents: "auto" },
+            style: { pointerEvents: isSubmitting ? "none" : "auto" },
           },
         }}
       >
@@ -301,7 +318,7 @@ const CustomModal = ({
           {getTitle()}
           <IconButton
             aria-label="close"
-            onClick={handleCloseModal}
+            onClick={isSubmitting ? undefined : handleCloseModal}
             sx={{
               position: "absolute",
               right: 8,
@@ -311,7 +328,11 @@ const CustomModal = ({
                 outline: "2px solid #06b6d4",
                 outlineOffset: "2px",
               },
+              "&:disabled": {
+                opacity: 0.5,
+              },
             }}
+            disabled={isSubmitting}
           >
             <CloseIcon />
           </IconButton>
@@ -348,7 +369,7 @@ const CustomModal = ({
                           .slice(0, 2)}
                     </Avatar>
 
-                    {!isViewOnly && (
+                    {!isViewOnly && !isSubmitting && (
                       <>
                         <input
                           ref={fileInputRef}
@@ -357,12 +378,14 @@ const CustomModal = ({
                           id="avatar-file"
                           type="file"
                           onChange={onFileChange}
+                          disabled={isSubmitting}
                         />
                         <label htmlFor="avatar-file">
                           <Button
                             variant="outlined"
                             component="span"
                             startIcon={<PhotoCamera />}
+                            disabled={isSubmitting}
                           >
                             Upload Photo
                           </Button>
@@ -384,17 +407,18 @@ const CustomModal = ({
                       name="name"
                       value={form.name}
                       onInput={onInput}
-                      readOnly={isViewOnly}
+                      readOnly={isViewOnly || isSubmitting}
                       error={touched.name && errors.name}
                       helperText={
                         touched.name && errors.name ? "Required field" : ""
                       }
-                      autoFocus={isEmployeeMode && !isViewOnly}
+                      autoFocus={isEmployeeMode && !isViewOnly && !isSubmitting}
                       onBlur={() => {
                         if (form.name && isEmployeeMode) {
                           onInput("name", capitalizeName(form.name));
                         }
                       }}
+                      disabled={isSubmitting}
                     />
                   </Grid>
 
@@ -409,13 +433,14 @@ const CustomModal = ({
                           name="email"
                           value={form.email}
                           onInput={onInput}
-                          readOnly={isViewOnly}
+                          readOnly={isViewOnly || isSubmitting}
                           error={touched.email && errors.email}
                           helperText={
                             touched.email && errors.email
                               ? "Invalid email address"
                               : ""
                           }
+                          disabled={isSubmitting}
                         />
                       </Grid>
 
@@ -426,7 +451,7 @@ const CustomModal = ({
                           name="phoneDigits"
                           value={form.phoneDigits}
                           onInput={onInput}
-                          readOnly={isViewOnly}
+                          readOnly={isViewOnly || isSubmitting}
                           error={touched.phoneDigits && errors.phoneDigits}
                           helperText={
                             touched.phoneDigits && errors.phoneDigits
@@ -437,6 +462,7 @@ const CustomModal = ({
                             inputMode: "numeric",
                             maxLength: 15,
                           }}
+                          disabled={isSubmitting}
                         />
                       </Grid>
 
@@ -448,6 +474,8 @@ const CustomModal = ({
                           onChange={handleDOBChange}
                           format="dd/MM/yyyy"
                           maxDate={new Date()}
+                          disabled={isViewOnly || isSubmitting}
+                          readOnly={isViewOnly || isSubmitting}
                           slotProps={{
                             textField: {
                               fullWidth: true,
@@ -457,45 +485,10 @@ const CustomModal = ({
                                   ? "Required field"
                                   : "",
                               ...textFieldProps,
+                              disabled: isSubmitting,
                             },
                           }}
                           {...datePickerProps}
-                        />
-                      </Grid>
-
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <CustomInput
-                          select
-                          label="Blood Group"
-                          name="bloodGroup"
-                          value={form.bloodGroup}
-                          onInput={onInput}
-                          readOnly={isViewOnly}
-                          error={touched.bloodGroup && errors.bloodGroup}
-                          helperText={
-                            touched.bloodGroup && errors.bloodGroup
-                              ? "Required field"
-                              : ""
-                          }
-                          options={bloodGroupOptions}
-                        />
-                      </Grid>
-
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <CustomInput
-                          select
-                          label="Marital Status"
-                          name="maritalStatus"
-                          value={form.maritalStatus || "Single"}
-                          onInput={onInput}
-                          readOnly={isViewOnly}
-                          error={touched.maritalStatus && errors.maritalStatus}
-                          helperText={
-                            touched.maritalStatus && errors.maritalStatus
-                              ? "Required field"
-                              : ""
-                          }
-                          options={maritalStatusOptions}
                         />
                       </Grid>
 
@@ -506,7 +499,7 @@ const CustomModal = ({
                           name="nationality"
                           value={form.nationality || "Indian"}
                           onInput={onInput}
-                          readOnly={isViewOnly}
+                          readOnly={isViewOnly || true} // Disabled and set to Indian
                           error={touched.nationality && errors.nationality}
                           helperText={
                             touched.nationality && errors.nationality
@@ -514,55 +507,44 @@ const CustomModal = ({
                               : ""
                           }
                           options={nationalityOptions}
-                        />
-                      </Grid>
-
-                      <Grid size={12}>
-                        <CustomInput
-                          multiline
-                          rows={2}
-                          label="Address"
-                          name="address"
-                          value={form.address}
-                          onInput={onInput}
-                          readOnly={isViewOnly}
-                          error={touched.address && errors.address}
-                          helperText={
-                            touched.address && errors.address
-                              ? "Required field"
-                              : ""
-                          }
+                          disabled={true}
                         />
                       </Grid>
 
                       {/* Professional Information */}
                       <Grid size={{ xs: 12, sm: 6 }}>
                         <CustomInput
+                          select
                           label="Department"
                           name="department"
-                          value={form.department}
+                          value={form.department || "IT & Software"}
                           onInput={onInput}
-                          readOnly={isViewOnly}
+                          readOnly={isViewOnly || true} // Disabled and set to IT & Software
                           error={touched.department && errors.department}
                           helperText={
                             touched.department && errors.department
                               ? "Required field"
                               : ""
                           }
+                          options={departmentOptions}
+                          disabled={true}
                         />
                       </Grid>
 
                       <Grid size={{ xs: 12, sm: 6 }}>
                         <CustomInput
+                          select
                           label="Role"
                           name="role"
-                          value={form.role}
+                          value={form.role || "Employee"}
                           onInput={onInput}
-                          readOnly={isViewOnly}
+                          readOnly={isViewOnly || true} // Disabled and set to Employee
                           error={touched.role && errors.role}
                           helperText={
                             touched.role && errors.role ? "Required field" : ""
                           }
+                          options={roleOptions}
+                          disabled={true}
                         />
                       </Grid>
 
@@ -573,7 +555,7 @@ const CustomModal = ({
                           name="employeeCodeDigits"
                           value={form.employeeCodeDigits}
                           onInput={onInput}
-                          readOnly={isViewOnly}
+                          readOnly={isViewOnly || isSubmitting}
                           error={
                             touched.employeeCodeDigits &&
                             errors.employeeCodeDigits
@@ -591,6 +573,7 @@ const CustomModal = ({
                             inputMode: "numeric",
                             maxLength: 9,
                           }}
+                          disabled={isSubmitting}
                         />
                       </Grid>
 
@@ -600,13 +583,14 @@ const CustomModal = ({
                           name="designation"
                           value={form.designation}
                           onInput={onInput}
-                          readOnly={isViewOnly}
+                          readOnly={isViewOnly || isSubmitting}
                           error={touched.designation && errors.designation}
                           helperText={
                             touched.designation && errors.designation
                               ? "Required field"
                               : ""
                           }
+                          disabled={isSubmitting}
                         />
                       </Grid>
 
@@ -614,9 +598,9 @@ const CustomModal = ({
                         <CustomInput
                           label="Working Project"
                           name="workingProject"
-                          value={form.workingProject}
+                          value={form.workingProject || "Lazy Squad"}
                           onInput={onInput}
-                          readOnly={isViewOnly}
+                          readOnly={isViewOnly || true} // Disabled and set to Lazy Squad
                           error={
                             touched.workingProject && errors.workingProject
                           }
@@ -625,6 +609,7 @@ const CustomModal = ({
                               ? "Required field"
                               : ""
                           }
+                          disabled={true}
                         />
                       </Grid>
 
@@ -635,6 +620,8 @@ const CustomModal = ({
                           onChange={handleJoiningDateChange}
                           format="dd/MM/yyyy"
                           maxDate={new Date()}
+                          disabled={isViewOnly || isSubmitting}
+                          readOnly={isViewOnly || isSubmitting}
                           slotProps={{
                             textField: {
                               fullWidth: true,
@@ -644,6 +631,7 @@ const CustomModal = ({
                                   ? "Required field"
                                   : "",
                               ...textFieldProps,
+                              disabled: isSubmitting,
                             },
                           }}
                           {...datePickerProps}
@@ -656,29 +644,14 @@ const CustomModal = ({
                           name="location"
                           value={form.location}
                           onInput={onInput}
-                          readOnly={isViewOnly}
+                          readOnly={isViewOnly || isSubmitting}
                           error={touched.location && errors.location}
                           helperText={
                             touched.location && errors.location
                               ? "Required field"
                               : ""
                           }
-                        />
-                      </Grid>
-
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <CustomInput
-                          label="Position"
-                          name="position"
-                          value={form.position}
-                          onInput={onInput}
-                          readOnly={isViewOnly}
-                          error={touched.position && errors.position}
-                          helperText={
-                            touched.position && errors.position
-                              ? "Required field"
-                              : ""
-                          }
+                          disabled={isSubmitting}
                         />
                       </Grid>
 
@@ -689,7 +662,7 @@ const CustomModal = ({
                           name="workFormat"
                           value={form.workFormat}
                           onInput={onInput}
-                          readOnly={isViewOnly}
+                          readOnly={isViewOnly || isSubmitting}
                           error={touched.workFormat && errors.workFormat}
                           helperText={
                             touched.workFormat && errors.workFormat
@@ -697,6 +670,7 @@ const CustomModal = ({
                               : ""
                           }
                           options={workFormatOptions}
+                          disabled={isSubmitting}
                         />
                       </Grid>
 
@@ -776,7 +750,7 @@ const CustomModal = ({
                           name="taskId"
                           value={form.taskId}
                           onInput={onInput}
-                          readOnly={isViewOnly}
+                          readOnly={isViewOnly || isSubmitting}
                           error={touched.taskId && errors.taskId}
                           helperText={
                             touched.taskId && errors.taskId
@@ -790,6 +764,7 @@ const CustomModal = ({
                             inputMode: "numeric",
                             maxLength: 8,
                           }}
+                          disabled={isSubmitting}
                         />
                       </Grid>
 
@@ -800,7 +775,7 @@ const CustomModal = ({
                           name="assignedTo"
                           value={form.assignedTo}
                           onInput={onInput}
-                          readOnly={isViewOnly}
+                          readOnly={isViewOnly || isSubmitting}
                           error={touched.assignedTo && errors.assignedTo}
                           helperText={
                             touched.assignedTo && errors.assignedTo
@@ -808,6 +783,7 @@ const CustomModal = ({
                               : ""
                           }
                           options={employeeOptions}
+                          disabled={isSubmitting}
                         />
                       </Grid>
 
@@ -820,6 +796,8 @@ const CustomModal = ({
                           }
                           onChange={handleCreatedAtChange}
                           format="dd/MM/yyyy"
+                          disabled={isViewOnly || isSubmitting}
+                          readOnly={isViewOnly || isSubmitting}
                           slotProps={{
                             textField: {
                               fullWidth: true,
@@ -829,6 +807,7 @@ const CustomModal = ({
                                   ? "Required field"
                                   : "",
                               ...textFieldProps,
+                              disabled: isSubmitting,
                             },
                           }}
                           {...datePickerProps}
@@ -842,13 +821,14 @@ const CustomModal = ({
                           name="sprintDays"
                           value={form.sprintDays}
                           onInput={onInput}
-                          readOnly={isViewOnly}
+                          readOnly={isViewOnly || isSubmitting}
                           error={touched.sprintDays && errors.sprintDays}
                           helperText={
                             touched.sprintDays && errors.sprintDays
                               ? "Required field"
                               : ""
                           }
+                          disabled={isSubmitting}
                         />
                       </Grid>
 
@@ -860,11 +840,12 @@ const CustomModal = ({
                           onChange={handleEndDateChange}
                           format="dd/MM/yyyy"
                           disabled={true}
-                          readOnly={isViewOnly}
+                          readOnly={isViewOnly || isSubmitting}
                           slotProps={{
                             textField: {
                               fullWidth: true,
                               ...textFieldProps,
+                              disabled: true,
                             },
                           }}
                           {...datePickerProps}
@@ -889,7 +870,8 @@ const CustomModal = ({
                               gap: 2,
                               justifyContent: "space-between",
                               width: "100%",
-                              pointerEvents: isViewOnly ? "none" : "auto",
+                              pointerEvents:
+                                isViewOnly || isSubmitting ? "none" : "auto",
                             }}
                           >
                             {taskStatusOptions.map((option) => (
@@ -899,7 +881,7 @@ const CustomModal = ({
                                 label={option.label}
                                 color={option.color}
                                 formStatus={form.status}
-                                readOnly={isViewOnly}
+                                readOnly={isViewOnly || isSubmitting}
                               />
                             ))}
                           </RadioGroup>
@@ -932,7 +914,7 @@ const CustomModal = ({
                   name="description"
                   value={form.description}
                   onInput={onInput}
-                  readOnly={isViewOnly}
+                  readOnly={isViewOnly || isSubmitting}
                   error={touched.description && errors.description}
                   helperText={
                     touched.description && errors.description
@@ -946,6 +928,7 @@ const CustomModal = ({
                       lineHeight: "1.5",
                     },
                   }}
+                  disabled={isSubmitting}
                 />
               </Box>
             )}
@@ -960,6 +943,7 @@ const CustomModal = ({
               <Button
                 variant="contained"
                 onClick={handleDeleteClick}
+                disabled={isSubmitting}
                 sx={{
                   background: "linear-gradient(90deg,#ef4444,#dc2626)",
                   color: "#fff",
@@ -971,16 +955,21 @@ const CustomModal = ({
                     background: "linear-gradient(90deg,#dc2626,#b91c1c)",
                     boxShadow: "0 10px 35px rgba(239,68,68,0.25)",
                   },
+                  "&:disabled": {
+                    opacity: 0.6,
+                    boxShadow: "none",
+                  },
                   mr: "auto",
                 }}
               >
-                Delete
+                {isSubmitting ? "Deleting..." : "Delete"}
               </Button>
             )}
 
             <Button
               variant="outlined"
               onClick={handleCloseModal}
+              disabled={isSubmitting}
               sx={{
                 borderColor: "rgba(0,0,0,0.08)",
                 color: "#333",
@@ -992,6 +981,10 @@ const CustomModal = ({
                   color: "#fff",
                   boxShadow: "0 8px 24px rgba(244,63,94,0.18)",
                 },
+                "&:disabled": {
+                  opacity: 0.6,
+                  boxShadow: "none",
+                },
               }}
             >
               Cancel
@@ -1001,7 +994,7 @@ const CustomModal = ({
               variant="contained"
               type="submit"
               onClick={handleSubmitForm}
-              disabled={!formIsValid}
+              disabled={!formIsValid || isSubmitting}
               sx={{
                 background: "linear-gradient(90deg,#00c853,#00e5ff)",
                 color: "#fff",
@@ -1013,9 +1006,23 @@ const CustomModal = ({
                   opacity: 0.6,
                   boxShadow: "none",
                 },
+                position: "relative",
               }}
             >
-              {getSubmitButtonText()}
+              {isSubmitting && (
+                <CircularProgress
+                  size={20}
+                  sx={{
+                    color: "#fff",
+                    position: "absolute",
+                    left: "50%",
+                    marginLeft: "-10px",
+                  }}
+                />
+              )}
+              <span style={{ opacity: isSubmitting ? 0 : 1 }}>
+                {getSubmitButtonText()}
+              </span>
             </Button>
           </DialogActions>
         ) : (

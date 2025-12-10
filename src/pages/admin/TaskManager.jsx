@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useEffect } from "react";
+import React, { useMemo, useRef, useEffect, useState } from "react";
 import { Box, Card, Typography } from "@mui/material";
 import { useAppDispatch, useAppSelector } from "../../redux-toolkit/Hooks";
 import {
@@ -13,6 +13,7 @@ import {
   addTaskAsync,
   updateTaskAsync,
 } from "../../redux-toolkit/slices/taskSlice";
+import { fetchEmployees } from "../../redux-toolkit/slices/EmployeeSlice";
 
 import TaskAltIcon from "@mui/icons-material/TaskAlt";
 import HourglassTopIcon from "@mui/icons-material/HourglassTop";
@@ -95,14 +96,42 @@ export default function TaskManager() {
     loading,
     error,
   } = useAppSelector((state) => state.tasks);
-  const { employees } = useAppSelector((state) => state.employees);
+  const { employees, initialLoad } = useAppSelector((state) => state.employees);
   const [modalOpen, setModalOpen] = React.useState(false);
+  const [taskSequenceMap, setTaskSequenceMap] = useState({});
   const fileInputRef = useRef(null);
 
   // 🔥 FETCH TASKS ON COMPONENT MOUNT
   useEffect(() => {
     dispatch(fetchTasks());
   }, [dispatch]);
+
+  // 🔥 FETCH EMPLOYEES ON COMPONENT MOUNT if not already loaded
+  useEffect(() => {
+    if (initialLoad && employees.length === 0) {
+      dispatch(fetchEmployees());
+    }
+  }, [dispatch, initialLoad, employees.length]);
+
+  // Update task sequence map when tasks change
+  useEffect(() => {
+    if (tasks.length > 0) {
+      // Sort tasks by createdAt (newest first) and create sequence map
+      const sortedTasks = [...tasks].sort((a, b) => {
+        const dateA = new Date(a.createdAt || "1970-01-01");
+        const dateB = new Date(b.createdAt || "1970-01-01");
+        return dateB - dateA; // Newest first
+      });
+
+      // Create a map of taskId to sequential number
+      const sequenceMap = {};
+      sortedTasks.forEach((task, index) => {
+        sequenceMap[task.id] = index + 1;
+      });
+
+      setTaskSequenceMap(sequenceMap);
+    }
+  }, [tasks]);
 
   // Check if task ID already exists
   const isTaskIdExists = (taskId) => {
@@ -153,8 +182,9 @@ export default function TaskManager() {
     return { nextNo, nextTaskId };
   };
 
-  // Check if there are employees available
+  // Check if there are employees available - FIXED
   const hasEmployees = employees.length > 0;
+  const isLoadingEmployees = initialLoad && employees.length === 0;
 
   // Open modal for adding new task
   const handleOpenAdd = () => {
@@ -240,13 +270,12 @@ export default function TaskManager() {
     if (editingTask === null) {
       const { nextNo, nextTaskId } = getNextTaskInfo();
 
-      // In TaskManager.jsx handleSubmit function, ensure:
       const newTask = {
         no: nextNo,
         name: form.name,
         taskId: `TID-${form.taskId || nextTaskId}`,
         description: form.description,
-        assignedTo: form.assignedTo, // This should be the EXACT employee name
+        assignedTo: form.assignedTo,
         createdAt: form.createdAt,
         sprint: `Sprint ${Math.floor(nextNo / 5) + 5}`,
         endDate: form.endDate,
@@ -289,6 +318,22 @@ export default function TaskManager() {
   const completedCount = tasks.filter((t) => t.status === "completed").length;
   const failedCount = tasks.filter((t) => t.status === "failed").length;
   const historyCount = tasks.length;
+
+  // Prepare tasks with sequential numbers for display
+  const tasksWithSequentialNumbers = useMemo(() => {
+    // Sort filtered tasks by createdAt (newest first)
+    const sortedFilteredTasks = [...filtered].sort((a, b) => {
+      const dateA = new Date(a.createdAt || "1970-01-01");
+      const dateB = new Date(b.createdAt || "1970-01-01");
+      return dateB - dateA; // Newest first
+    });
+
+    // Add sequential display numbers
+    return sortedFilteredTasks.map((task, index) => ({
+      ...task,
+      displayNo: index + 1, // Sequential number starting from 1
+    }));
+  }, [filtered]);
 
   return (
     <Box sx={{ p: 6, width: "100%" }}>
@@ -354,12 +399,19 @@ export default function TaskManager() {
           />
         </div>
 
-        <CustomButton onClick={handleOpenAdd} disabled={!hasEmployees}>
-          {hasEmployees ? "Add New Task" : "No Employees Available"}
+        <CustomButton
+          onClick={handleOpenAdd}
+          disabled={isLoadingEmployees || !hasEmployees}
+        >
+          {isLoadingEmployees
+            ? "Loading..."
+            : hasEmployees
+            ? "Add New Task"
+            : "No Employees Available"}
         </CustomButton>
       </div>
 
-      {!hasEmployees && (
+      {!hasEmployees && !isLoadingEmployees && (
         <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
           <Typography variant="body2" color="text.secondary">
             You need to add employees first before creating tasks.
@@ -376,7 +428,7 @@ export default function TaskManager() {
 
       {/* TABLE */}
       <CustomTable
-        tasks={filtered}
+        tasks={tasksWithSequentialNumbers}
         onRowClick={handleOpenEdit}
         truncate={truncate}
       />
