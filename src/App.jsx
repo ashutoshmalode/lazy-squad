@@ -16,8 +16,8 @@ import TestFirebase from "./components/TestFirebase"; // Import the test compone
 const App = () => {
   return (
     <Provider store={store}>
-      <AuthProvider>
-        <Router>
+      <Router>
+        <AuthProvider>
           {/* Add TestFirebase component here - it will show on all pages */}
           {/* <TestFirebase /> */}
 
@@ -50,8 +50,8 @@ const App = () => {
             {/* Catch all route - redirect to login */}
             <Route path="*" element={<Navigate to="/log-in" replace />} />
           </Routes>
-        </Router>
-      </AuthProvider>
+        </AuthProvider>
+      </Router>
     </Provider>
   );
 };

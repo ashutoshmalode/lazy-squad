@@ -12,9 +12,11 @@ import GroupIcon from "@mui/icons-material/Group";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const SideBar = ({ userData, menuItems, onNavigation, userRole = "admin" }) => {
   const { logout } = useAuth();
+  const navigate = useNavigate();
 
   // Icon mapping
   const getIcon = (iconName) => {
@@ -30,11 +32,10 @@ const SideBar = ({ userData, menuItems, onNavigation, userRole = "admin" }) => {
     }
   };
 
-  // Handle logout functionality
+  // Handle logout functionality - FIXED: Use navigate instead of window.location
   const handleLogout = () => {
     logout();
-    // Force reload to clear any remaining state and ensure clean login page
-    window.location.href = "/log-in";
+    // AuthContext will handle the navigation
   };
 
   return (

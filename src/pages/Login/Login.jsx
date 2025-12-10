@@ -23,20 +23,13 @@ function Login() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  // FIXED: Only run once on component mount
   useEffect(() => {
+    // Replace current history entry to prevent back button issues
     window.history.replaceState(null, "", "/log-in");
-
-    const handlePopState = (event) => {
-      window.history.pushState(null, "", "/log-in");
-    };
-
-    window.addEventListener("popstate", handlePopState);
-
-    return () => {
-      window.removeEventListener("popstate", handlePopState);
-    };
   }, []);
 
+  // FIXED: Handle user redirect properly
   useEffect(() => {
     if (user) {
       if (user.role === "admin") {

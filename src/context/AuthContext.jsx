@@ -1,10 +1,16 @@
-import React, { createContext, useContext, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useCallback,
+} from "react";
 import { useAppDispatch, useAppSelector } from "../redux-toolkit/Hooks";
 import {
   initializeAuth,
   login,
   logout,
 } from "../redux-toolkit/slices/AuthSlice";
+import { useNavigate } from "react-router-dom";
 
 const AuthContext = createContext();
 
@@ -18,21 +24,25 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const { user, loading } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
     dispatch(initializeAuth());
   }, [dispatch]);
 
-  const loginUser = (userData) => {
-    dispatch(login(userData));
-    window.history.replaceState(null, "", window.location.href);
-  };
+  const loginUser = useCallback(
+    (userData) => {
+      dispatch(login(userData));
+    },
+    [dispatch]
+  );
 
-  const logoutUser = () => {
+  const logoutUser = useCallback(() => {
     dispatch(logout());
-    window.history.replaceState(null, "", "/log-in");
-  };
+    // Navigate to login page WITHOUT reloading
+    navigate("/log-in", { replace: true });
+  }, [dispatch, navigate]);
 
   const value = {
     user,
