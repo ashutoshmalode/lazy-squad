@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useAppDispatch } from "../redux-toolkit/Hooks";
 import { fetchEmployees } from "../redux-toolkit/slices/EmployeeSlice";
-import { fetchTasks } from "../redux-toolkit/slices/taskSlice";
+import { fetchTasks } from "../redux-toolkit/slices/TaskSlice";
 
 const TestFirebase = () => {
   const dispatch = useAppDispatch();

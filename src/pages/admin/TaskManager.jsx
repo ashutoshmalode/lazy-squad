@@ -12,7 +12,7 @@ import {
   fetchTasks,
   addTaskAsync,
   updateTaskAsync,
-} from "../../redux-toolkit/slices/taskSlice";
+} from "../../redux-toolkit/slices/TaskSlice";
 import { fetchEmployees } from "../../redux-toolkit/slices/EmployeeSlice";
 
 import TaskAltIcon from "@mui/icons-material/TaskAlt";
