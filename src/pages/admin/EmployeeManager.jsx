@@ -371,8 +371,6 @@ export default function EmployeeManager() {
           setModalOpen(false);
           dispatch(resetForm());
           dispatch(setEditingEmployee(null));
-
-          console.log(`Employee ${deletedEmployeeName} deleted successfully`);
         } catch (error) {
           console.error("Error deleting employee:", error);
           alert(

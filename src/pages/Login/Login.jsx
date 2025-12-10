@@ -76,13 +76,11 @@ function Login() {
       const userData = await loginUser(email, password);
 
       if (userData) {
-        console.log("User data received from loginUser:", userData);
         // Check if user is an employee (case-insensitive check)
         const userRole = userData.role?.toLowerCase();
         if (userRole === "employee") {
           login(userData);
         } else {
-          console.log("User role is not employee:", userData.role);
           setError("Access denied. Employee account required.");
         }
       } else {
@@ -167,61 +165,105 @@ function Login() {
               Lazy Squad
             </Typography>
 
-            <TextField
-              label="Email"
-              placeholder="Enter your email"
-              variant="outlined"
-              fullWidth
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onKeyPress={handleKeyPress}
-              disabled={loading}
-              sx={{
-                input: { color: "white" },
-                label: { color: "#cfcfcf" },
-                "& .MuiOutlinedInput-root": {
-                  "& fieldset": { borderColor: "#bbbbbb" },
-                  "&:hover fieldset": { borderColor: "white" },
-                  "&.Mui-focused fieldset": { borderColor: "white" },
-                },
-              }}
-            />
+            <div className="relative">
+              <TextField
+                label="Email"
+                placeholder="Enter your email"
+                variant="outlined"
+                fullWidth
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyPress={handleKeyPress}
+                disabled={loading}
+                sx={{
+                  "& .MuiInputBase-input": {
+                    color: "white !important",
+                    // Force background color for autofill
+                    WebkitTextFillColor: "white !important",
+                  },
+                  "& .MuiInputLabel-root": {
+                    color: "#cfcfcf",
+                    "&.Mui-focused": { color: "white" },
+                  },
+                  "& .MuiOutlinedInput-root": {
+                    "& fieldset": { borderColor: "#bbbbbb" },
+                    "&:hover fieldset": { borderColor: "white" },
+                    "&.Mui-focused fieldset": { borderColor: "white" },
+                    // Fix autofill background
+                    "& input:-webkit-autofill": {
+                      WebkitBoxShadow: "0 0 0 1000px #3d3d3d inset !important",
+                      WebkitTextFillColor: "white !important",
+                    },
+                    "& input:-webkit-autofill:hover": {
+                      WebkitBoxShadow: "0 0 0 1000px #3d3d3d inset !important",
+                      WebkitTextFillColor: "white !important",
+                    },
+                    "& input:-webkit-autofill:focus": {
+                      WebkitBoxShadow: "0 0 0 1000px #3d3d3d inset !important",
+                      WebkitTextFillColor: "white !important",
+                    },
+                  },
+                }}
+              />
+            </div>
 
-            <TextField
-              label="Password (Employee ID)"
-              placeholder="Enter your Employee ID"
-              type={showPassword ? "text" : "password"}
-              variant="outlined"
-              fullWidth
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyPress={handleKeyPress}
-              disabled={loading}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label="toggle password visibility"
-                      onClick={handleClickShowPassword}
-                      onMouseDown={handleMouseDownPassword}
-                      edge="end"
-                      sx={{ color: "#cfcfcf" }}
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                input: { color: "white" },
-                label: { color: "#cfcfcf" },
-                "& .MuiOutlinedInput-root": {
-                  "& fieldset": { borderColor: "#bbbbbb" },
-                  "&:hover fieldset": { borderColor: "white" },
-                  "&.Mui-focused fieldset": { borderColor: "white" },
-                },
-              }}
-            />
+            <div className="relative">
+              <TextField
+                label="Password (Employee ID)"
+                placeholder="Enter your Employee ID"
+                type={showPassword ? "text" : "password"}
+                variant="outlined"
+                fullWidth
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyPress={handleKeyPress}
+                disabled={loading}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label="toggle password visibility"
+                        onClick={handleClickShowPassword}
+                        onMouseDown={handleMouseDownPassword}
+                        edge="end"
+                        sx={{ color: "#cfcfcf" }}
+                      >
+                        {showPassword ? <Visibility /> : <VisibilityOff />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{
+                  "& .MuiInputBase-input": {
+                    color: "white !important",
+                    // Force background color for autofill
+                    WebkitTextFillColor: "white !important",
+                  },
+                  "& .MuiInputLabel-root": {
+                    color: "#cfcfcf",
+                    "&.Mui-focused": { color: "white" },
+                  },
+                  "& .MuiOutlinedInput-root": {
+                    "& fieldset": { borderColor: "#bbbbbb" },
+                    "&:hover fieldset": { borderColor: "white" },
+                    "&.Mui-focused fieldset": { borderColor: "white" },
+                    // Fix autofill background
+                    "& input:-webkit-autofill": {
+                      WebkitBoxShadow: "0 0 0 1000px #3d3d3d inset !important",
+                      WebkitTextFillColor: "white !important",
+                    },
+                    "& input:-webkit-autofill:hover": {
+                      WebkitBoxShadow: "0 0 0 1000px #3d3d3d inset !important",
+                      WebkitTextFillColor: "white !important",
+                    },
+                    "& input:-webkit-autofill:focus": {
+                      WebkitBoxShadow: "0 0 0 1000px #3d3d3d inset !important",
+                      WebkitTextFillColor: "white !important",
+                    },
+                  },
+                }}
+              />
+            </div>
 
             <Box sx={{ minHeight: "20px" }}>
               {error && (

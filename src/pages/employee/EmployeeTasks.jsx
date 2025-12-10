@@ -289,7 +289,6 @@ export default function EmployeeTasks() {
   useEffect(() => {
     const fetchAllTasks = async () => {
       try {
-        console.log("📋 Fetching ALL tasks directly from Firestore...");
         const tasksRef = collection(db, "tasks");
         const querySnapshot = await getDocs(tasksRef);
 
@@ -298,18 +297,10 @@ export default function EmployeeTasks() {
           ...doc.data(),
         }));
 
-        console.log(`✅ Found ${tasks.length} total tasks`);
         setAllTasks(tasks);
 
         // Log all tasks for debugging
-        tasks.forEach((task, index) => {
-          console.log(`Task ${index + 1}:`, {
-            id: task.id,
-            name: task.name,
-            assignedTo: task.assignedTo,
-            createdAt: task.createdAt,
-          });
-        });
+        tasks.forEach((task, index) => {});
       } catch (error) {
         console.error("❌ Error fetching tasks:", error);
       }
@@ -321,11 +312,6 @@ export default function EmployeeTasks() {
   // 🔥 FILTER TASKS FOR CURRENT EMPLOYEE
   useEffect(() => {
     if (user && user.name && user.employeeCode && allTasks.length > 0) {
-      console.log(
-        `🔍 Filtering tasks for employee: ${user.name} (${user.employeeCode})`
-      );
-      console.log(`📊 Total tasks to filter: ${allTasks.length}`);
-
       // Create search patterns
       const employeeName = user.name;
       const employeeCode = user.employeeCode;
@@ -336,16 +322,9 @@ export default function EmployeeTasks() {
       // Pattern 2: Just the name part for partial matching
       const nameOnly = employeeName;
 
-      console.log(`🔍 Looking for pattern: "${fullPattern}"`);
-      console.log(`🔍 Also checking for name: "${nameOnly}"`);
-
       // Method 1: Exact match with full pattern
       const exactMatchTasks = allTasks.filter(
         (task) => task.assignedTo === fullPattern
-      );
-
-      console.log(
-        `✅ Exact match tasks (full pattern): ${exactMatchTasks.length}`
       );
 
       // Method 2: Contains employee name (case-insensitive)
@@ -353,42 +332,21 @@ export default function EmployeeTasks() {
         task.assignedTo?.toLowerCase().includes(employeeName.toLowerCase())
       );
 
-      console.log(`✅ Name match tasks: ${nameMatchTasks.length}`);
-
       // Method 3: Contains employee code
       const codeMatchTasks = allTasks.filter((task) =>
         task.assignedTo?.includes(employeeCode)
       );
 
-      console.log(`✅ Code match tasks: ${codeMatchTasks.length}`);
-
       // Method 4: Show ALL tasks for debugging
-      console.log("🔧 ALL TASKS WITH assignedTo VALUES:");
-      allTasks.forEach((task, index) => {
-        console.log(`   ${index + 1}. "${task.assignedTo}"`);
-        console.log(
-          `      Contains "${employeeName}"?`,
-          task.assignedTo?.toLowerCase().includes(employeeName.toLowerCase())
-        );
-        console.log(
-          `      Contains "${employeeCode}"?`,
-          task.assignedTo?.includes(employeeCode)
-        );
-        console.log(
-          `      Equals "${fullPattern}"?`,
-          task.assignedTo === fullPattern
-        );
-      });
+      allTasks.forEach((task, index) => {});
 
       // Use the best match (prefer exact match, then name match, then code match)
       let filteredTasks = exactMatchTasks;
 
       if (filteredTasks.length === 0 && nameMatchTasks.length > 0) {
         filteredTasks = nameMatchTasks;
-        console.log("🔄 Using name match");
       } else if (filteredTasks.length === 0 && codeMatchTasks.length > 0) {
         filteredTasks = codeMatchTasks;
-        console.log("🔄 Using code match");
       }
 
       // Sort tasks by created date (newest first)
@@ -514,7 +472,7 @@ export default function EmployeeTasks() {
         truncate={truncateText}
       />
 
-      {/* CUSTOM MODAL for Viewing Task Details */}
+      {/* CUSTOM MODAL for Viewing Task Details - FIXED: Pass empty employees array */}
       <CustomModal
         open={modalOpen}
         onClose={handleCloseModal}
@@ -528,6 +486,7 @@ export default function EmployeeTasks() {
         fileInputRef={fileInputRef}
         onFileChange={handleFileChange}
         onInput={handleInput}
+        employees={[]} // Pass empty array for employee view
         readOnly={true} // This makes it view-only for employees
       />
     </div>

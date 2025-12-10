@@ -34,16 +34,13 @@ export const employeeService = {
 
   // Get employee by email (case-sensitive exact match)
   getEmployeeByEmail: async (email) => {
-    console.log("🔍 Searching for employee with email:", email);
     const q = query(collection(db, "employees"), where("email", "==", email));
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
       const doc = querySnapshot.docs[0];
       const employeeData = { id: doc.id, ...doc.data() };
-      console.log("✅ Found employee:", employeeData.name);
       return employeeData;
     }
-    console.log("❌ No employee found with email:", email);
     return null;
   },
 
@@ -137,14 +134,11 @@ export const employeeService = {
     const employeeData = employeeDoc.data();
     const email = employeeData.email;
 
-    console.log("Deleting employee with email:", email);
-
     // Use a batch to delete from multiple collections
     const batch = writeBatch(db);
 
     // 1. Delete from employees collection
     batch.delete(docRef);
-    console.log("Marked for deletion from employees collection");
 
     // 2. Delete from users collection
     const usersQuery = await getDocs(
@@ -154,7 +148,6 @@ export const employeeService = {
     if (!usersQuery.empty) {
       usersQuery.forEach((userDoc) => {
         batch.delete(userDoc.ref);
-        console.log("Marked user document for deletion:", userDoc.id);
       });
     }
 
@@ -167,7 +160,6 @@ export const employeeService = {
     );
 
     if (!tasksQuery.empty) {
-      console.log(`Found ${tasksQuery.size} tasks assigned to this employee`);
       // Optional: Uncomment if you want to delete tasks too
       // tasksQuery.forEach((taskDoc) => {
       //   batch.delete(taskDoc.ref);
@@ -176,8 +168,6 @@ export const employeeService = {
 
     // Execute the batch
     await batch.commit();
-    console.log("Batch deletion completed for employee:", email);
-
     return id;
   },
 
@@ -206,13 +196,11 @@ export const taskService = {
 
   // Get tasks by employee name
   getTasksByEmployee: async (employeeName) => {
-    console.log("🔍 Searching for tasks assigned to employee:", employeeName);
     const q = query(
       collection(db, "tasks"),
       where("assignedTo", "==", employeeName)
     );
     const querySnapshot = await getDocs(q);
-    console.log(`✅ Found ${querySnapshot.size} tasks for ${employeeName}`);
     return querySnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
@@ -223,22 +211,12 @@ export const taskService = {
   // In FirebaseService.jsx, update getTasksByEmployeeEmail function:
   getTasksByEmployeeEmail: async (employeeEmail) => {
     try {
-      console.log("🔍 Getting tasks for employee email:", employeeEmail);
-
       // First get the employee by email
       const employee = await employeeService.getEmployeeByEmail(employeeEmail);
 
       if (!employee) {
-        console.log("❌ Employee not found with email:", employeeEmail);
         return [];
       }
-
-      console.log(
-        "✅ Found employee:",
-        employee.name,
-        "Code:",
-        employee.employeeCode
-      );
 
       // Create the expected pattern: "LSEMP0001 - Anirudh Malode"
       const expectedPattern = `${employee.employeeCode} - ${employee.name}`;
@@ -251,10 +229,6 @@ export const taskService = {
 
       const querySnapshot = await getDocs(q);
 
-      console.log(
-        `📋 Found ${querySnapshot.size} tasks with pattern: "${expectedPattern}"`
-      );
-
       const tasks = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
@@ -266,7 +240,6 @@ export const taskService = {
 
       // Fallback: Get all tasks and filter
       try {
-        console.log("🔄 Trying fallback method...");
         const allTasks = await taskService.getTasks();
         const employee = await employeeService.getEmployeeByEmail(
           employeeEmail
@@ -280,8 +253,6 @@ export const taskService = {
             task.assignedTo?.includes(employee.name) ||
             task.assignedTo?.includes(employee.employeeCode)
         );
-
-        console.log(`🔄 Fallback found ${filteredTasks.length} tasks`);
         return filteredTasks;
       } catch (fallbackError) {
         console.error("❌ Fallback also failed:", fallbackError);
@@ -293,26 +264,17 @@ export const taskService = {
   // Get ALL tasks and filter by employee (Alternative approach)
   getAllTasksAndFilterByEmployee: async (employeeEmail) => {
     try {
-      console.log("🔍 Getting all tasks and filtering for:", employeeEmail);
-
       const employee = await employeeService.getEmployeeByEmail(employeeEmail);
 
       if (!employee) {
-        console.log("❌ Employee not found");
         return [];
       }
 
       // Get ALL tasks
       const allTasks = await taskService.getTasks();
-      console.log(`📋 Total tasks in system: ${allTasks.length}`);
-
       // Filter tasks by employee name
       const employeeTasks = allTasks.filter(
         (task) => task.assignedTo === employee.name
-      );
-
-      console.log(
-        `✅ Filtered ${employeeTasks.length} tasks for ${employee.name}`
       );
 
       return employeeTasks;
@@ -324,9 +286,7 @@ export const taskService = {
 
   // Add new task
   addTask: async (taskData) => {
-    console.log("➕ Adding new task:", taskData);
     const docRef = await addDoc(collection(db, "tasks"), taskData);
-    console.log("✅ Task added with ID:", docRef.id);
     return { id: docRef.id, ...taskData };
   },
 

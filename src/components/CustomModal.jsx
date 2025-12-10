@@ -282,10 +282,37 @@ const CustomModal = ({
   ];
 
   // Employee options for task assignment
-  const employeeOptions = employees.map((employee) => ({
-    value: `${employee.employeeCode} - ${employee.name}`,
-    label: `${employee.employeeCode} - ${employee.name}`,
-  }));
+  // FIX: When employees array is empty (view-only mode for employee), create a single option from the form.assignedTo value
+  let employeeOptions = [];
+
+  if (employees.length > 0) {
+    // Normal mode - admin is editing/creating tasks
+    employeeOptions = employees.map((employee) => ({
+      value: `${employee.employeeCode} - ${employee.name}`,
+      label: `${employee.employeeCode} - ${employee.name}`,
+    }));
+  } else if (isViewOnly && form.assignedTo) {
+    // View-only mode for employee - create a single option from the current assignedTo value
+    employeeOptions = [
+      {
+        value: form.assignedTo,
+        label: form.assignedTo,
+      },
+    ];
+  } else {
+    // Empty state - no employees available
+    employeeOptions = [
+      {
+        value: "",
+        label: "No employees available",
+      },
+    ];
+  }
+
+  // Add a default option for new task creation
+  if (!isViewOnly && employees.length > 0) {
+    employeeOptions.unshift({ value: "", label: "Select Employee" });
+  }
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -769,22 +796,42 @@ const CustomModal = ({
                       </Grid>
 
                       <Grid size={{ xs: 12, sm: 6 }}>
-                        <CustomInput
-                          select
-                          label="Assigned To"
-                          name="assignedTo"
-                          value={form.assignedTo}
-                          onInput={onInput}
-                          readOnly={isViewOnly || isSubmitting}
-                          error={touched.assignedTo && errors.assignedTo}
-                          helperText={
-                            touched.assignedTo && errors.assignedTo
-                              ? "Required field"
-                              : ""
-                          }
-                          options={employeeOptions}
-                          disabled={isSubmitting}
-                        />
+                        {/* FIXED: Handle employee options properly for view-only mode */}
+                        {isViewOnly ? (
+                          // In view-only mode, show as a regular text field instead of select
+                          <CustomInput
+                            label="Assigned To"
+                            name="assignedTo"
+                            value={form.assignedTo || ""}
+                            onInput={onInput}
+                            readOnly={true}
+                            disabled={true}
+                            sx={{
+                              "& .MuiInputBase-input": {
+                                backgroundColor: "#f5f5f5",
+                                cursor: "default",
+                              },
+                            }}
+                          />
+                        ) : (
+                          // In edit/create mode, show as select dropdown
+                          <CustomInput
+                            select
+                            label="Assigned To"
+                            name="assignedTo"
+                            value={form.assignedTo}
+                            onInput={onInput}
+                            readOnly={isViewOnly || isSubmitting}
+                            error={touched.assignedTo && errors.assignedTo}
+                            helperText={
+                              touched.assignedTo && errors.assignedTo
+                                ? "Required field"
+                                : ""
+                            }
+                            options={employeeOptions}
+                            disabled={isSubmitting}
+                          />
+                        )}
                       </Grid>
 
                       {/* Created At - Use DIRECT DatePicker */}

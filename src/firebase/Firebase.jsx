@@ -19,12 +19,10 @@ const firebaseConfig = {
 let app;
 try {
   app = initializeApp(firebaseConfig);
-  console.log("Firebase initialized successfully");
 } catch (error) {
   if (error.code === "app/duplicate-app") {
     // Firebase already initialized, get the existing app
     app = getApp();
-    console.log("Firebase already initialized, using existing app");
   } else {
     console.error("Firebase initialization error:", error);
     throw error;

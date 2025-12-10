@@ -21,45 +21,31 @@ import { auth, db } from "./Firebase";
 // Login user with email and password - EXACT CASE-SENSITIVE MATCHING
 export const loginUser = async (email, password) => {
   try {
-    console.log("Attempting login with email:", email, "password:", password);
-
     // First, check if user exists in Firestore employees collection with exact email
     const employeesQuery = await getDocs(
       query(collection(db, "employees"), where("email", "==", email))
     );
 
     if (employeesQuery.empty) {
-      console.log("No employee found with email:", email);
       throw new Error("auth/user-not-found");
     }
 
     const employeeDoc = employeesQuery.docs[0];
     const employeeData = employeeDoc.data();
-    console.log("Found employee in employees collection:", employeeData);
 
     // Verify password matches employeeCode exactly (case-sensitive)
     if (employeeData.employeeCode !== password) {
-      console.log(
-        "Password mismatch. Expected:",
-        employeeData.employeeCode,
-        "Got:",
-        password
-      );
       throw new Error("auth/wrong-password");
     }
 
-    console.log("Credentials matched! Employee:", employeeData.name);
-
     try {
       // Try to login with Firebase Auth
-      console.log("Attempting Firebase Auth login...");
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email,
         password
       );
       const user = userCredential.user;
-      console.log("Firebase Auth login successful, user ID:", user.uid);
 
       const userData = {
         uid: user.uid,
@@ -77,15 +63,10 @@ export const loginUser = async (email, password) => {
 
       // Also save to users collection for future reference
       await setDoc(doc(db, "users", user.uid), userData);
-      console.log("Saved user data to users collection");
       return userData;
     } catch (authError) {
-      console.log("Firebase Auth error:", authError.code, authError.message);
-
       // If Firebase Auth fails with "user-not-found", create the auth account
       if (authError.code === "auth/user-not-found") {
-        console.log("Creating Firebase Auth account for existing employee...");
-
         try {
           // Create user in Firebase Authentication
           const userCredential = await createUserWithEmailAndPassword(
@@ -94,7 +75,6 @@ export const loginUser = async (email, password) => {
             password
           );
           const user = userCredential.user;
-          console.log("Firebase Auth user created, ID:", user.uid);
 
           const userData = {
             uid: user.uid,
@@ -112,10 +92,6 @@ export const loginUser = async (email, password) => {
 
           // Save to users collection
           await setDoc(doc(db, "users", user.uid), userData);
-          console.log(
-            "Auth account created successfully for:",
-            employeeData.name
-          );
           return userData;
         } catch (createError) {
           console.error("Error creating auth account:", createError);
@@ -152,19 +128,13 @@ export const logoutUser = async () => {
 // Create new employee user in Firebase Auth and Firestore
 export const createEmployeeUser = async (employeeData) => {
   try {
-    console.log("Creating employee user with data:", employeeData);
-
     // Use the EXACT email from employeeData
     const email = employeeData.email;
     if (!email || !email.includes("@")) {
       throw new Error("Employee email is required and must be valid");
     }
-
-    console.log("Using email from employee record:", email);
-
     // Generate password: Use Employee ID only (e.g., LSEMP0001)
     const password = employeeData.employeeCode;
-    console.log("Generated password (Employee ID):", password);
 
     // STEP 1: Check if employee already exists in Firestore
     const employeesQuery = await getDocs(
@@ -172,17 +142,11 @@ export const createEmployeeUser = async (employeeData) => {
     );
 
     if (!employeesQuery.empty) {
-      console.log("⚠️ Employee already exists in Firestore!");
       const employeeDoc = employeesQuery.docs[0];
       const existingData = employeeDoc.data();
 
-      console.log("Existing employee data:", existingData);
-
       // Check if it's marked as deleted or active
       if (existingData.status === "deleted") {
-        console.log(
-          "Employee is marked as deleted, proceeding with recreation..."
-        );
         // We can proceed to create auth account
       } else {
         throw new Error(
@@ -192,7 +156,6 @@ export const createEmployeeUser = async (employeeData) => {
     }
 
     // STEP 2: Create Firebase Auth account (NEW FIXED LOGIC)
-    console.log("Creating Firebase Auth account...");
     try {
       // Directly create user - don't try to sign in first
       const userCredential = await createUserWithEmailAndPassword(
@@ -201,7 +164,6 @@ export const createEmployeeUser = async (employeeData) => {
         password
       );
       const user = userCredential.user;
-      console.log("✅ Firebase Auth user created, ID:", user.uid);
 
       // Prepare user data for users collection
       const userData = {
@@ -220,19 +182,14 @@ export const createEmployeeUser = async (employeeData) => {
 
       // Save to users collection
       await setDoc(doc(db, "users", user.uid), userData);
-      console.log("✅ User data saved to users collection");
-
       return employeeData;
     } catch (createError) {
       console.error("Error creating Firebase Auth account:", createError);
 
       if (createError.code === "auth/email-already-in-use") {
-        console.log("⚠️ Email already exists in Firebase Auth");
-
         // Try to sign in to see if it's the same credentials
         try {
           await signInWithEmailAndPassword(auth, email, password);
-          console.log("✅ Email exists with same credentials");
           return employeeData;
         } catch (signInError) {
           if (signInError.code === "auth/wrong-password") {
@@ -257,12 +214,9 @@ export const deleteEmployeeUser = async (employeeData) => {
     const email = employeeData.email;
     const password = employeeData.employeeCode;
 
-    console.log("Deleting employee user:", email);
-
     // STEP 1: Try to delete from Firebase Authentication
     try {
       // Try to sign in to get the user
-      console.log("Attempting to sign in to get user...");
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email,
@@ -271,18 +225,13 @@ export const deleteEmployeeUser = async (employeeData) => {
       const user = userCredential.user;
 
       // Delete from Firebase Auth
-      console.log("Deleting user from Firebase Auth:", user.uid);
       await deleteUser(user);
-      console.log("Successfully deleted from Firebase Auth");
     } catch (authError) {
       if (authError.code === "auth/user-not-found") {
-        console.log("User not found in Firebase Auth, checking other cases...");
-
         // Try to find user by email in auth (might have different password)
         // Note: Firebase doesn't have a direct API to find user by email
         // We'll skip this and just delete from Firestore
       } else if (authError.code === "auth/wrong-password") {
-        console.log("Wrong password for Firebase Auth");
         // Email exists but password is wrong - we need admin SDK to delete
         // For now, we'll just log this
       } else {
@@ -292,51 +241,37 @@ export const deleteEmployeeUser = async (employeeData) => {
 
     // STEP 2: Delete from Firestore users collection
     try {
-      console.log("Deleting from Firestore users collection...");
       const usersQuery = await getDocs(
         query(collection(db, "users"), where("email", "==", email))
       );
 
       if (!usersQuery.empty) {
-        console.log(`Found ${usersQuery.size} documents in users collection`);
         const batch = writeBatch(db);
 
         usersQuery.forEach((userDoc) => {
-          console.log("Deleting user document:", userDoc.id);
           batch.delete(userDoc.ref);
         });
 
         await batch.commit();
-        console.log("Deleted from users collection");
       } else {
-        console.log("No documents found in users collection");
       }
-    } catch (usersError) {
-      console.error("Error deleting from users collection:", usersError);
-    }
+    } catch (usersError) {}
 
     // STEP 3: Delete from Firestore employees collection
     try {
-      console.log("Deleting from Firestore employees collection...");
       const employeesQuery = await getDocs(
         query(collection(db, "employees"), where("email", "==", email))
       );
 
       if (!employeesQuery.empty) {
-        console.log(
-          `Found ${employeesQuery.size} documents in employees collection`
-        );
         const batch = writeBatch(db);
 
         employeesQuery.forEach((employeeDoc) => {
-          console.log("Deleting employee document:", employeeDoc.id);
           batch.delete(employeeDoc.ref);
         });
 
         await batch.commit();
-        console.log("Deleted from employees collection");
       } else {
-        console.log("No documents found in employees collection");
       }
     } catch (employeesError) {
       console.error(
@@ -344,8 +279,6 @@ export const deleteEmployeeUser = async (employeeData) => {
         employeesError
       );
     }
-
-    console.log("Employee deletion process completed for:", email);
 
     return { success: true, email: email };
   } catch (error) {
@@ -361,12 +294,6 @@ export const updateEmployeeCredentials = async (
   newEmployeeCode
 ) => {
   try {
-    console.log("Updating employee credentials:", {
-      oldEmail,
-      newEmail,
-      newEmployeeCode,
-    });
-
     // Get the old user data from Firestore
     const employeesQuery = await getDocs(
       query(collection(db, "employees"), where("email", "==", oldEmail))
@@ -382,8 +309,6 @@ export const updateEmployeeCredentials = async (
 
     // If email is changing
     if (oldEmail !== newEmail) {
-      console.log("Email is being changed from", oldEmail, "to", newEmail);
-
       try {
         // Try to delete old Firebase Auth account
         try {
@@ -394,15 +319,11 @@ export const updateEmployeeCredentials = async (
           );
           const user = userCredential.user;
           await deleteUser(user);
-          console.log("Old Firebase Auth account deleted");
-        } catch (authError) {
-          console.log("Could not delete old auth account:", authError.message);
-        }
+        } catch (authError) {}
 
         // Create new Firebase Auth account with new email
         try {
           await createUserWithEmailAndPassword(auth, newEmail, newEmployeeCode);
-          console.log("New Firebase Auth account created with new email");
         } catch (createError) {
           console.error("Error creating new auth account:", createError);
           throw createError;
@@ -413,8 +334,6 @@ export const updateEmployeeCredentials = async (
       }
     } else if (oldPassword !== newEmployeeCode) {
       // Only password is changing
-      console.log("Only password is being updated");
-
       try {
         // Get the user
         const userCredential = await signInWithEmailAndPassword(
@@ -429,18 +348,14 @@ export const updateEmployeeCredentials = async (
         // 2. Call updatePassword(user, newPassword)
         // However, we can't update password without the user being logged in
 
-        console.log("Password update requires user to be logged in");
         // For now, we'll delete and recreate the auth account
         await deleteUser(user);
         await createUserWithEmailAndPassword(auth, oldEmail, newEmployeeCode);
-        console.log("Auth account recreated with new password");
       } catch (authError) {
         console.error("Error updating password:", authError);
         throw authError;
       }
     }
-
-    console.log("Credentials update completed");
   } catch (error) {
     console.error("Error updating employee credentials:", error);
     throw error;
@@ -500,10 +415,6 @@ export const createAuthForExistingEmployee = async (employeeData) => {
     const email = employeeData.email;
     const password = employeeData.employeeCode; // Use Employee ID as password
 
-    console.log("Creating auth for existing employee:");
-    console.log("Email:", email);
-    console.log("Password (Employee ID):", password);
-
     const userCredential = await createUserWithEmailAndPassword(
       auth,
       email,
@@ -526,7 +437,6 @@ export const createAuthForExistingEmployee = async (employeeData) => {
     };
 
     await setDoc(doc(db, "users", user.uid), userData);
-    console.log("Auth created successfully for:", employeeData.name);
     return userData;
   } catch (error) {
     console.error("Error creating auth for existing employee:", error);
@@ -537,8 +447,6 @@ export const createAuthForExistingEmployee = async (employeeData) => {
 // Batch function to create auth for ALL existing employees
 export const createAuthForAllExistingEmployees = async () => {
   try {
-    console.log("Creating auth accounts for all existing employees...");
-
     // Get all employees from Firestore
     const employeesQuery = await getDocs(collection(db, "employees"));
     const employees = employeesQuery.docs.map((doc) => ({
@@ -546,15 +454,12 @@ export const createAuthForAllExistingEmployees = async () => {
       ...doc.data(),
     }));
 
-    console.log(`Found ${employees.length} employees`);
-
     const results = [];
 
     for (const employee of employees) {
       try {
         // Skip if email is not valid
         if (!employee.email || !employee.email.includes("@")) {
-          console.log(`Skipping ${employee.name}: Invalid email`);
           continue;
         }
 
@@ -565,7 +470,6 @@ export const createAuthForAllExistingEmployees = async () => {
             employee.email,
             employee.employeeCode
           );
-          console.log(`Auth account already exists for ${employee.name}`);
           results.push({ name: employee.name, status: "already_exists" });
         } catch (authError) {
           if (authError.code === "auth/user-not-found") {
@@ -575,7 +479,6 @@ export const createAuthForAllExistingEmployees = async () => {
               employee.email,
               employee.employeeCode
             );
-            console.log(`Created auth account for ${employee.name}`);
             results.push({ name: employee.name, status: "created" });
           } else {
             console.error(
@@ -599,7 +502,6 @@ export const createAuthForAllExistingEmployees = async () => {
       }
     }
 
-    console.log("Batch auth creation completed. Results:", results);
     return results;
   } catch (error) {
     console.error("Error in batch auth creation:", error);
@@ -610,8 +512,6 @@ export const createAuthForAllExistingEmployees = async () => {
 // Clean up all employee data (for admin use)
 export const cleanupEmployeeData = async (email) => {
   try {
-    console.log("Starting cleanup for email:", email);
-
     const results = {
       email: email,
       authDeleted: false,
@@ -621,9 +521,6 @@ export const cleanupEmployeeData = async (email) => {
     };
 
     // 1. Try to find and delete from Firebase Auth
-    console.log(
-      "Note: Firebase Auth cleanup requires Admin SDK on server side"
-    );
     results.authDeleted = "Requires server-side Admin SDK";
 
     // 2. Delete from users collection
@@ -638,7 +535,6 @@ export const cleanupEmployeeData = async (email) => {
       });
       await batch.commit();
       results.usersDeleted = usersQuery.size;
-      console.log(`Deleted ${usersQuery.size} documents from users collection`);
     }
 
     // 3. Delete from employees collection
@@ -653,9 +549,6 @@ export const cleanupEmployeeData = async (email) => {
       });
       await batch.commit();
       results.employeesDeleted = employeesQuery.size;
-      console.log(
-        `Deleted ${employeesQuery.size} documents from employees collection`
-      );
     }
 
     // 4. Clean up tasks (optional)
@@ -664,11 +557,9 @@ export const cleanupEmployeeData = async (email) => {
     );
 
     if (!tasksQuery.empty) {
-      console.log(`Found ${tasksQuery.size} tasks assigned to ${email}`);
       results.tasksFound = tasksQuery.size;
     }
 
-    console.log("Cleanup completed:", results);
     return results;
   } catch (error) {
     console.error("Error in cleanupEmployeeData:", error);
